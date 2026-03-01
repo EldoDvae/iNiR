@@ -840,6 +840,106 @@ theme[process_end]="{primary_dim}"
         print(f"\u2713 Generated btop theme and created btop.conf")
 
 
+def generate_omp_config(colors, output_path):
+    """Generate oh-my-posh theme using Material You design tokens"""
+
+    surface_container = colors.get("surface_container")
+    surface_container_high = colors.get("surface_container_high")
+
+    on_surface = colors.get("on_surface")
+    on_surface_variant = colors.get("on_surface_variant")
+
+    primary = colors.get("primary")
+    primary_container = colors.get("primary_container")
+    on_primary_container = colors.get("on_primary_container")
+
+    error_container = colors.get("error_container")
+    on_error_container = colors.get("on_error_container")
+
+    theme = {
+        "$schema": "https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/schema.json",
+        "version": 4,
+        "blocks": [
+            {
+                "type": "prompt",
+                "alignment": "left",
+                "segments": [
+                    {
+                        "type": "executiontime",
+                        "style": "plain",
+                        "foreground": on_surface_variant,
+                        "background": surface_container_high,
+                        "template": " {{ .FormattedMs }} ",
+                        "properties": {
+                            "style": "austin",
+                            "threshold": 500
+                        }
+                    },
+                    {
+                        "type": "status",
+                        "style": "plain",
+                        "foreground": on_error_container,
+                        "background": error_container,
+                        "template": " {{ if gt .Code 0 }}✗ {{ .Code }}{{ end }} "
+                    },
+                    {
+                        "type": "path",
+                        "style": "plain",
+                        "foreground": on_surface,
+                        "background": surface_container,
+                        "template": " {{ .Path }} ",
+                        "properties": {
+                            "style": "full",
+                            "folder_separator_icon": "/"
+                        }
+                    },
+                    {
+                        "type": "git",
+                        "style": "plain",
+                        "foreground": on_primary_container,
+                        "background": primary_container,
+                        "template": " {{ .HEAD }}{{ if .Working.Changed }} ●{{ end }}{{ if .Staging.Changed }} ✚{{ end }} ",
+                        "properties": {
+                            "branch_icon": "",
+                            "fetch_status": True
+                        }
+                    }
+                ]
+            },
+            {
+                "type": "rprompt",
+                "segments": [
+                    {
+                        "type": "time",
+                        "style": "plain",
+                        "foreground": on_surface_variant,
+                        "template": " {{ .CurrentDate | date \"15:04\" }} "
+                    }
+                ]
+            },
+            {
+                "type": "prompt",
+                "alignment": "left",
+                "newline": True,
+                "segments": [
+                    {
+                        "type": "text",
+                        "style": "plain",
+                        "foreground": primary,
+                        "template": "❯ "
+                    }
+                ]
+            }
+        ]
+    }
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    with open(output_path, "w") as f:
+        json.dump(theme, f, indent=2)
+
+    print(f"✓ Generated oh-my-posh theme")
+
+
 def generate_lazygit_config(colors, output_path):
     """Generate lazygit theme config.
 
@@ -1165,6 +1265,7 @@ def main():
             "ghostty",
             "konsole",
             "starship",
+            "omp",
             "btop",
             "lazygit",
             "yazi",
@@ -1212,6 +1313,7 @@ def main():
             "ghostty",
             "konsole",
             "starship",
+            "omp",
             "btop",
             "lazygit",
             "yazi",
@@ -1241,6 +1343,19 @@ def main():
 
     if "starship" in terminals:
         generate_starship_config(colors, f"{home}/.config/starship/ii-palette.toml")
+
+    if "omp" in terminals:
+        colors_json_path = os.path.expanduser(
+            "~/.local/state/quickshell/user/generated/colors.json"
+        )
+        try:
+            with open(colors_json_path, "r") as f:
+                m3_colors = json.load(f)
+                omp_colors = {**colors, **m3_colors}
+                generate_omp_config(omp_colors, f"{home}/.config/oh-my-posh/ii-auto.json")
+        except FileNotFoundError:
+            print(f"Warning: {colors_json_path} not found, oh-my-posh theme may be incomplete")
+            generate_omp_config(colors, f"{home}/.config/oh-my-posh/ii-auto.json")
 
     if "btop" in terminals:
         # btop needs full M3 tokens from colors.json, not just terminal colors
