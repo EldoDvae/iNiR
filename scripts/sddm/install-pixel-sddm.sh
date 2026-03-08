@@ -205,7 +205,6 @@ if command -v systemctl &>/dev/null && [[ -d /run/systemd/system ]]; then
     if ! systemctl is-enabled sddm.service &>/dev/null 2>&1; then
         # Handle conflicting display-manager.service symlink (e.g., plasmalogin, gdm, etc.)
         if [[ -L /etc/systemd/system/display-manager.service ]]; then
-            local current_dm
             current_dm=$(readlink -f /etc/systemd/system/display-manager.service 2>/dev/null | xargs basename 2>/dev/null || echo "unknown")
             if [[ "$current_dm" != "sddm.service" ]]; then
                 log_info "Removing conflicting display-manager.service -> ${current_dm}"

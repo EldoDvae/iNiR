@@ -11,7 +11,7 @@
 # Requirements:
 #   - cmake, ninja, git, pkg-config
 #   - Qt6: qt6-base, qt6-declarative, qt6-svg, qt6-wayland, qt6-webengine
-#   - qt6-shadertools, spirv-tools (build-time)
+#   - qt6-shadertools, spirv-tools, wayland-protocols (build-time)
 #   - cli11
 
 set -euo pipefail

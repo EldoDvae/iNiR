@@ -38,6 +38,7 @@ makedepends=(
     'pkg-config'
     'qt6-shadertools'
     'spirv-tools'
+    'wayland-protocols'
 )
 provides=('quickshell')
 conflicts=('quickshell' 'quickshell-git')
