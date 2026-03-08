@@ -19,13 +19,42 @@ DockButton {
     property real countDotWidth: 10
     property real countDotHeight: 4
     readonly property var toplevels: appToplevel?.toplevels ?? []
-    // O(1) reactive: depends only on ToplevelManager.activeToplevel signal,
-    // NOT on individual t.activated of every toplevel (which caused cascade re-evaluations).
+    readonly property var activeToplevel: ToplevelManager.activeToplevel
+    readonly property string activeWindowKey: {
+        const active = activeToplevel
+        if (!active)
+            return ""
+        if (active.niriWindowId !== undefined && active.niriWindowId !== null)
+            return "niri:" + active.niriWindowId
+        if (active.address !== undefined && active.address !== null && String(active.address).length > 0)
+            return "addr:" + active.address
+        if (active.wayland?.appId !== undefined && active.wayland?.appId !== null && active.activated)
+            return "app:" + active.wayland.appId + ":" + (active.title ?? "")
+        return ""
+    }
+    function _toplevelKey(toplevel) {
+        if (!toplevel)
+            return ""
+        if (toplevel.niriWindowId !== undefined && toplevel.niriWindowId !== null)
+            return "niri:" + toplevel.niriWindowId
+        if (toplevel.address !== undefined && toplevel.address !== null && String(toplevel.address).length > 0)
+            return "addr:" + toplevel.address
+        if (toplevel.wayland?.appId !== undefined && toplevel.wayland?.appId !== null)
+            return "app:" + toplevel.wayland.appId + ":" + (toplevel.title ?? "")
+        return ""
+    }
     property bool appIsActive: {
-        const active = ToplevelManager.activeToplevel
+        const active = activeToplevel
         if (!active || !active.activated) return false
+        const activeKey = activeWindowKey
         for (let i = 0; i < toplevels.length; i++) {
-            if (toplevels[i] === active) return true
+            const toplevel = toplevels[i]
+            if (!toplevel)
+                continue
+            if (toplevel.activated)
+                return true
+            if (activeKey.length > 0 && _toplevelKey(toplevel) === activeKey)
+                return true
         }
         return false
     }
@@ -56,11 +85,18 @@ DockButton {
         if (!root.appIsActive || toplevels.length <= 1)
             return 0;
 
-        const active = ToplevelManager.activeToplevel;
+        const active = activeToplevel;
         if (!active) return 0;
+        const activeKey = activeWindowKey;
 
         for (let i = 0; i < toplevels.length; i++) {
-            if (toplevels[i] === active) return i;
+            const toplevel = toplevels[i]
+            if (!toplevel)
+                continue
+            if (toplevel.activated)
+                return i
+            if (activeKey.length > 0 && _toplevelKey(toplevel) === activeKey)
+                return i
         }
         return 0;
     }
