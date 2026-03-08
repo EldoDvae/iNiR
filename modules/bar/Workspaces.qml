@@ -181,9 +181,10 @@ Item {
             wheelStepCounter = 0
             const deltaX = event.angleDelta.x
             const deltaY = event.angleDelta.y
-            const delta = deltaX !== 0 ? deltaX : -deltaY
+            let delta = deltaX !== 0 ? deltaX : -deltaY
             if (delta === 0) return
             
+            if (wsConfig.invertScroll ?? false) delta = -delta
             const direction = delta > 0 ? 1 : -1
 
             if (CompositorService.isNiri) {
