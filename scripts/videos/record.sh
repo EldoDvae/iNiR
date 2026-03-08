@@ -15,6 +15,18 @@ is_vaapi_codec() {
     [[ "$1" == "h264_vaapi" || "$1" == "hevc_vaapi" || "$1" == "vp9_vaapi" || "$1" == "av1_vaapi" ]]
 }
 
+is_nvenc_codec() {
+    [[ "$1" == "h264_nvenc" || "$1" == "hevc_nvenc" || "$1" == "av1_nvenc" ]]
+}
+
+is_hw_codec() {
+    is_vaapi_codec "$1" || is_nvenc_codec "$1"
+}
+
+is_nvidia_gpu() {
+    command -v nvidia-smi &>/dev/null && nvidia-smi &>/dev/null
+}
+
 getaudiooutput() {
     local default_sink
     default_sink="$(pactl get-default-sink 2>/dev/null)"
@@ -53,6 +65,18 @@ has_ffmpeg_encoder() {
 }
 
 detect_hw_video_codec() {
+    # Nvidia: skip VAAPI (unreliable even if ffmpeg lists it), go straight to NVENC
+    if is_nvidia_gpu; then
+        if has_ffmpeg_encoder h264_nvenc; then
+            printf '%s\n' 'h264_nvenc'
+            return
+        fi
+        if has_ffmpeg_encoder hevc_nvenc; then
+            printf '%s\n' 'hevc_nvenc'
+            return
+        fi
+    fi
+    # AMD/Intel: try VAAPI (needs render device)
     if [[ -n "$HARDWARE_DEVICE" && -c "$HARDWARE_DEVICE" ]]; then
         if has_ffmpeg_encoder h264_vaapi; then
             printf '%s\n' 'h264_vaapi'
@@ -62,6 +86,11 @@ detect_hw_video_codec() {
             printf '%s\n' 'hevc_vaapi'
             return
         fi
+    fi
+    # Fallback: try NVENC anyway (hybrid GPU setups)
+    if has_ffmpeg_encoder h264_nvenc; then
+        printf '%s\n' 'h264_nvenc'
+        return
     fi
     printf '%s\n' 'libx264'
 }
@@ -85,6 +114,11 @@ build_common_args() {
         )
         [[ -n "$HARDWARE_DEVICE" ]] && common_args+=( -d "$HARDWARE_DEVICE" )
         [[ -n "$VAAPI_FILTER" ]] && common_args+=( -F "$VAAPI_FILTER" )
+        if [[ -n "$VIDEO_BITRATE_KBPS" ]]; then
+            common_args+=( -p "b=${VIDEO_BITRATE_KBPS}k" )
+        fi
+    elif is_nvenc_codec "$VIDEO_CODEC"; then
+        common_args+=( -c "$VIDEO_CODEC" )
         if [[ -n "$VIDEO_BITRATE_KBPS" ]]; then
             common_args+=( -p "b=${VIDEO_BITRATE_KBPS}k" )
         fi
@@ -215,7 +249,7 @@ if [[ "$ACCELERATION_MODE" == "gpu" ]]; then
         VIDEO_CODEC="$(detect_hw_video_codec)"
     fi
 elif [[ "$ACCELERATION_MODE" == "software" ]]; then
-    if is_default_recorder_value "$VIDEO_CODEC" "libx264" || is_vaapi_codec "$VIDEO_CODEC"; then
+    if is_default_recorder_value "$VIDEO_CODEC" "libx264" || is_hw_codec "$VIDEO_CODEC"; then
         VIDEO_CODEC="libx264"
     fi
 elif is_default_recorder_value "$VIDEO_CODEC" "libx264"; then
@@ -224,6 +258,12 @@ fi
 
 if is_vaapi_codec "$VIDEO_CODEC"; then
     PIXEL_FORMAT="yuv420p"
+    if is_default_recorder_value "$VIDEO_BITRATE_KBPS" "12000"; then
+        VIDEO_BITRATE_KBPS="18000"
+    fi
+fi
+
+if is_nvenc_codec "$VIDEO_CODEC"; then
     if is_default_recorder_value "$VIDEO_BITRATE_KBPS" "12000"; then
         VIDEO_BITRATE_KBPS="18000"
     fi
