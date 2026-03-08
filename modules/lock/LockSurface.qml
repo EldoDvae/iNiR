@@ -169,8 +169,8 @@ MouseArea {
                 Layout.alignment: Qt.AlignHCenter
                 text: Qt.formatTime(new Date(), "hh:mm")
                 font.pixelSize: Math.round(108 * Appearance.fontSizeScale)
-                font.weight: Font.Light
-                font.family: Appearance.font.family.title
+                font.weight: Font.DemiBold
+                font.family: Appearance.font.family.appearance
                 color: Appearance.colors.colOnSurface
                 
                 layer.enabled: Appearance.effectsEnabled
