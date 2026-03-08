@@ -286,7 +286,8 @@
         "multiMonitor": {
             "enable": false
         },
-        "wallpapersByMonitor": []
+        "wallpapersByMonitor": [],
+        "hideUpscaleNotification": false
     },
     "bar": {
         "autoHide": {

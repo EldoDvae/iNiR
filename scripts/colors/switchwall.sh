@@ -128,6 +128,17 @@ get_max_monitor_resolution() {
 
 check_and_prompt_upscale() {
     local img="$1"
+
+    # Check if upscale notifications are disabled in config
+    local config_file="$HOME/.config/illogical-impulse/config.json"
+    if [[ -f "$config_file" ]] && command -v jq &>/dev/null; then
+        local hide_upscale
+        hide_upscale=$(jq -r '.background.hideUpscaleNotification // false' "$config_file" 2>/dev/null)
+        if [[ "$hide_upscale" == "true" ]]; then
+            return
+        fi
+    fi
+
     read min_width_desired min_height_desired <<< "$(get_max_monitor_resolution)"
 
     if command -v identify &>/dev/null && [ -f "$img" ]; then

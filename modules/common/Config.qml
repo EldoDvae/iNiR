@@ -563,6 +563,7 @@ Singleton {
                     property int duration: 800 // ms
                     property list<var> bezier: [0.54, 0.0, 0.34, 0.99]
                 }
+                property bool hideUpscaleNotification: false
             }
 
             property JsonObject bar: JsonObject {

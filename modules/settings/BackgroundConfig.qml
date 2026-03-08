@@ -2300,4 +2300,22 @@ ContentPage {
             }
         }
     }
+
+    SettingsCardSection {
+        expanded: false
+        icon: "notifications"
+        title: Translation.tr("Notifications")
+
+        SettingsGroup {
+            SettingsSwitch {
+                buttonIcon: "hide_image"
+                text: Translation.tr("Hide wallpaper upscale notification")
+                checked: Config.options?.background?.hideUpscaleNotification ?? false
+                onCheckedChanged: Config.setNestedValue("background.hideUpscaleNotification", checked)
+                StyledToolTip {
+                    text: Translation.tr("Suppress the notification that appears when a wallpaper has lower resolution than your monitor")
+                }
+            }
+        }
+    }
 }
