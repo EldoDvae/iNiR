@@ -74,7 +74,7 @@ Item {
         border.color: Appearance.angelEverywhere ? Appearance.angel.colBorder
             : Appearance.inirEverywhere ? Appearance.inir.colBorder : "transparent"
         Behavior on color {
-            animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
+            animation: ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
         }
         
         // Priority indicator bar

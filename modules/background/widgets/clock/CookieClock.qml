@@ -150,7 +150,7 @@ Item {
         shown: Config.options.background.widgets.clock.cookie.timeIndicators
         scale: 1.4 - 0.4 * timeColumnLoader.shown
         Behavior on scale {
-            animation: Appearance.animation.elementResize.numberAnimation.createObject(this)
+            animation: NumberAnimation { duration: Appearance.animation.elementResize.duration; easing.type: Appearance.animation.elementResize.type; easing.bezierCurve: Appearance.animation.elementResize.bezierCurve }
         }
 
         sourceComponent: TimeColumn {

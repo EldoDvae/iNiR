@@ -31,10 +31,10 @@ Rectangle {
 
     visible: hasValidGeometry && opacity > 0
     Behavior on opacity {
-        animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+        animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
     }
     Behavior on color {
-        animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
+        animation: ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
     }
     x: hasValidGeometry ? clientDimensions.at[0] : 0
     y: hasValidGeometry ? clientDimensions.at[1] : 0

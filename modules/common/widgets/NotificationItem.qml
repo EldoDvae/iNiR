@@ -152,7 +152,7 @@ Item { // Notification item area
             Behavior on anchors.margins {
                 // Sidebar: smooth margin transition; Popup: instant
                 enabled: !root.popup && Appearance.animationsEnabled
-                animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
             }
 
             RowLayout { // Summary row
@@ -174,7 +174,7 @@ Item { // Notification item area
                     visible: opacity > 0
                     Layout.fillWidth: true
                     Behavior on opacity {
-                        animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                        animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                     }
                     font.pixelSize: root.fontSize
                     color: Appearance.colors.colSubtext
@@ -198,7 +198,7 @@ Item { // Notification item area
                 StyledText { // Notification body (expanded)
                     id: notificationBodyText
                     Behavior on opacity {
-                        animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                        animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                     }
                     Layout.fillWidth: true
                     font.pixelSize: root.fontSize
@@ -247,13 +247,13 @@ Item { // Notification item area
                         contentWidth: actionRowLayout.implicitWidth
 
                         Behavior on opacity {
-                            animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                            animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                         }
                         Behavior on height {
-                            animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                            animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                         }
                         Behavior on implicitHeight {
-                            animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                            animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                         }
 
                         RowLayout {

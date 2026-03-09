@@ -106,7 +106,7 @@ DockButton {
     scale: (!macosStyle && !pillStyle && appIsActive) ? 1.05 : 1.0
     Behavior on scale {
         enabled: Appearance.animationsEnabled
-        animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+        animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
     }
 
     property bool isSeparator: appToplevel.appId === "SEPARATOR"
@@ -173,7 +173,7 @@ DockButton {
         opacity: root.buttonHovered && !root.isSeparator ? 0.6 : 0
         Behavior on opacity {
             enabled: Appearance.animationsEnabled
-            animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+            animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
         }
     }
 

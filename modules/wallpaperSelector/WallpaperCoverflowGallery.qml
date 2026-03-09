@@ -505,7 +505,7 @@ Item {
         auroraTransparency: Appearance.aurora.popupTransparentize
         border.width: Appearance.inirEverywhere || Appearance.angelEverywhere ? 1 : 0
         border.color: root.borderColor
-        Behavior on opacity { enabled: Appearance.animationsEnabled; animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this) }
+        Behavior on opacity { enabled: Appearance.animationsEnabled; animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve } }
 
         RowLayout {
             id: topRow
@@ -589,7 +589,7 @@ Item {
             auroraTransparency: Appearance.aurora.popupTransparentize
             border.width: Appearance.inirEverywhere || Appearance.angelEverywhere ? 1 : 0
             border.color: root.borderColor
-            Behavior on opacity { enabled: Appearance.animationsEnabled; animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this) }
+            Behavior on opacity { enabled: Appearance.animationsEnabled; animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve } }
 
             ColumnLayout {
                 id: infoColumn
@@ -680,7 +680,7 @@ Item {
             auroraTransparency: Appearance.aurora.popupTransparentize
             border.width: Appearance.inirEverywhere || Appearance.angelEverywhere ? 1 : 0
             border.color: root.borderColor
-            Behavior on opacity { enabled: Appearance.animationsEnabled; animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this) }
+            Behavior on opacity { enabled: Appearance.animationsEnabled; animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve } }
 
             ColumnLayout {
                 id: actionsColumn
@@ -1023,9 +1023,9 @@ Item {
                 opacity: 0.74
                 scale: 0.94
 
-                Behavior on x { enabled: Appearance.animationsEnabled; animation: Appearance.animation.elementMoveEnter.numberAnimation.createObject(this) }
-                Behavior on opacity { enabled: Appearance.animationsEnabled; animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this) }
-                Behavior on scale { enabled: Appearance.animationsEnabled; animation: Appearance.animation.elementMoveEnter.numberAnimation.createObject(this) }
+                Behavior on x { enabled: Appearance.animationsEnabled; animation: NumberAnimation { duration: Appearance.animation.elementMoveEnter.duration; easing.type: Appearance.animation.elementMoveEnter.type; easing.bezierCurve: Appearance.animation.elementMoveEnter.bezierCurve } }
+                Behavior on opacity { enabled: Appearance.animationsEnabled; animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve } }
+                Behavior on scale { enabled: Appearance.animationsEnabled; animation: NumberAnimation { duration: Appearance.animation.elementMoveEnter.duration; easing.type: Appearance.animation.elementMoveEnter.type; easing.bezierCurve: Appearance.animation.elementMoveEnter.bezierCurve } }
 
                 StyledRectangularShadow {
                     target: sideCard
@@ -1122,7 +1122,7 @@ Item {
         auroraTransparency: Appearance.aurora.popupTransparentize
         border.width: Appearance.inirEverywhere || Appearance.angelEverywhere ? 1 : 0
         border.color: root.borderColor
-        Behavior on height { enabled: Appearance.animationsEnabled; animation: Appearance.animation.elementMoveEnter.numberAnimation.createObject(this) }
+        Behavior on height { enabled: Appearance.animationsEnabled; animation: NumberAnimation { duration: Appearance.animation.elementMoveEnter.duration; easing.type: Appearance.animation.elementMoveEnter.type; easing.bezierCurve: Appearance.animation.elementMoveEnter.bezierCurve } }
 
         ListView {
             id: filmstripView
@@ -1317,7 +1317,7 @@ Item {
         color: ColorUtils.applyAlpha(Appearance.colors.colScrim, 0.72)
         width: hintText.implicitWidth + 24
         height: hintText.implicitHeight + 10
-        Behavior on opacity { enabled: Appearance.animationsEnabled; animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this) }
+        Behavior on opacity { enabled: Appearance.animationsEnabled; animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve } }
 
         StyledText {
             id: hintText
@@ -1341,8 +1341,8 @@ Item {
         screenY: { const p = toolbarArea.mapToGlobal(0, 0); return p.y }
         opacity: root.previewMode ? 0.0 : 1.0
         scale: root.previewMode ? 0.96 : 1.0
-        Behavior on opacity { enabled: Appearance.animationsEnabled; animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this) }
-        Behavior on scale { enabled: Appearance.animationsEnabled; animation: Appearance.animation.elementMoveEnter.numberAnimation.createObject(this) }
+        Behavior on opacity { enabled: Appearance.animationsEnabled; animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve } }
+        Behavior on scale { enabled: Appearance.animationsEnabled; animation: NumberAnimation { duration: Appearance.animation.elementMoveEnter.duration; easing.type: Appearance.animation.elementMoveEnter.type; easing.bezierCurve: Appearance.animation.elementMoveEnter.bezierCurve } }
 
         IconToolbarButton {
             implicitWidth: height

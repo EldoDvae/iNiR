@@ -135,13 +135,13 @@ AbstractBackgroundWidget {
                 color: ColorUtils.transparentize(Appearance.colors.colSecondaryContainer, root.clockStyle === "cookie" ? 0 : 1)
 
                 Behavior on implicitWidth {
-                    animation: Appearance.animation.elementResize.numberAnimation.createObject(this)
+                    animation: NumberAnimation { duration: Appearance.animation.elementResize.duration; easing.type: Appearance.animation.elementResize.type; easing.bezierCurve: Appearance.animation.elementResize.bezierCurve }
                 }
                 Behavior on implicitHeight {
-                    animation: Appearance.animation.elementResize.numberAnimation.createObject(this)
+                    animation: NumberAnimation { duration: Appearance.animation.elementResize.duration; easing.type: Appearance.animation.elementResize.type; easing.bezierCurve: Appearance.animation.elementResize.bezierCurve }
                 }
                 Behavior on opacity {
-                    animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                    animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                 }
 
                 RowLayout {
@@ -199,7 +199,7 @@ AbstractBackgroundWidget {
         opacity: shown ? 1 : 0
         visible: opacity > 0
         Behavior on opacity {
-            animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+            animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
         }
         spacing: 4
         MaterialSymbol {

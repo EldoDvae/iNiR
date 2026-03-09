@@ -125,10 +125,10 @@ Rectangle {
             text: quickSlider.materialSymbol
 
             Behavior on color {
-                animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
+                animation: ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
             }
             Behavior on anchors.rightMargin {
-                animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
             }
 
         }

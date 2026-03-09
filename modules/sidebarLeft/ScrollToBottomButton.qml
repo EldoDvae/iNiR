@@ -18,10 +18,10 @@ RippleButton {
     scale: !target.atYEnd ? 1 : 0.7
     visible: opacity > 0
     Behavior on opacity {
-        animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+        animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
     }
     Behavior on scale {
-        animation: Appearance.animation.elementResize.numberAnimation.createObject(this)
+        animation: NumberAnimation { duration: Appearance.animation.elementResize.duration; easing.type: Appearance.animation.elementResize.type; easing.bezierCurve: Appearance.animation.elementResize.bezierCurve }
     }
 
     implicitWidth: contentItem.implicitWidth + 8 * 2

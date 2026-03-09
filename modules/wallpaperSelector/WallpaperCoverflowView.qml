@@ -429,7 +429,7 @@ Item {
             }
             height: headerColumn.implicitHeight
             opacity: root.previewMode ? 0.0 : 1.0
-            Behavior on opacity { enabled: Appearance.animationsEnabled; animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this) }
+            Behavior on opacity { enabled: Appearance.animationsEnabled; animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve } }
 
             ColumnLayout {
                 id: headerColumn
@@ -1238,7 +1238,7 @@ Item {
         color: ColorUtils.applyAlpha(Appearance.colors.colScrim, 0.72)
         width: previewHint.implicitWidth + 24
         height: previewHint.implicitHeight + 10
-        Behavior on opacity { enabled: Appearance.animationsEnabled; animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this) }
+        Behavior on opacity { enabled: Appearance.animationsEnabled; animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve } }
 
         StyledText {
             id: previewHint
@@ -1259,8 +1259,8 @@ Item {
 
         opacity: root.previewMode ? 0.0 : 1.0
         scale: root.previewMode ? 0.96 : 1.0
-        Behavior on opacity { enabled: Appearance.animationsEnabled; animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this) }
-        Behavior on scale { enabled: Appearance.animationsEnabled; animation: Appearance.animation.elementMoveEnter.numberAnimation.createObject(this) }
+        Behavior on opacity { enabled: Appearance.animationsEnabled; animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve } }
+        Behavior on scale { enabled: Appearance.animationsEnabled; animation: NumberAnimation { duration: Appearance.animation.elementMoveEnter.duration; easing.type: Appearance.animation.elementMoveEnter.type; easing.bezierCurve: Appearance.animation.elementMoveEnter.bezierCurve } }
 
         IconToolbarButton {
             implicitWidth: height

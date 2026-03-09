@@ -87,7 +87,7 @@ Scope {
                 visible: opacity > 0
                 Behavior on opacity {
                     enabled: Appearance.animationsEnabled
-                    animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                    animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                 }
                 MouseArea {
                     anchors.fill: parent
@@ -243,7 +243,7 @@ Scope {
 
                                 Behavior on color {
                                     enabled: Appearance.animationsEnabled
-                                    animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
+                                    animation: ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                                 }
 
                                 ColumnLayout {

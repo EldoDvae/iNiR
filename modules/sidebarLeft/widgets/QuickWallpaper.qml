@@ -221,7 +221,7 @@ Item {
 
                             Behavior on border.width {
                                 enabled: Appearance.animationsEnabled
-                                animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                                animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                             }
                         }
 
@@ -257,7 +257,7 @@ Item {
                                 color: wallpaperDelegate.isHovered && !wallpaperDelegate.isCurrentWallpaper
                                     ? ColorUtils.transparentize("black", 0.7)
                                     : "transparent"
-                                Behavior on color { animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this) }
+                                Behavior on color { animation: ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve } }
                             }
 
                             // Check icon for selected
@@ -272,7 +272,7 @@ Item {
 
                                 Behavior on scale {
                                     enabled: Appearance.animationsEnabled
-                                    animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                                    animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                                 }
 
                                 MaterialSymbol {

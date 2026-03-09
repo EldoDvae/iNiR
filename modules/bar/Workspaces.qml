@@ -273,14 +273,14 @@ Item {
                 opacity: (workspaceOccupied[index] && !(!activeWindow?.activated && currentWorkspaceNumber === index+1)) ? 1 : 0
 
                 Behavior on opacity {
-                    animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
+                    animation: NumberAnimation { duration: Appearance.animation.elementMove.duration; easing.type: Appearance.animation.elementMove.type; easing.bezierCurve: Appearance.animation.elementMove.bezierCurve }
                 }
                 Behavior on radiusPrev {
-                    animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
+                    animation: NumberAnimation { duration: Appearance.animation.elementMove.duration; easing.type: Appearance.animation.elementMove.type; easing.bezierCurve: Appearance.animation.elementMove.bezierCurve }
                 }
 
                 Behavior on radiusNext {
-                    animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
+                    animation: NumberAnimation { duration: Appearance.animation.elementMove.duration; easing.type: Appearance.animation.elementMove.type; easing.bezierCurve: Appearance.animation.elementMove.bezierCurve }
                 }
 
             }
@@ -394,7 +394,7 @@ Item {
                                 Appearance.colors.colOnLayer1Inactive)
 
                         Behavior on opacity {
-                            animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                            animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                         }
                     }
                     Rectangle { // Dot instead of ws number
@@ -414,7 +414,7 @@ Item {
                                 Appearance.colors.colOnLayer1Inactive)
 
                         Behavior on opacity {
-                            animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                            animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                         }
                     }
                     Item { // Main app icon
@@ -438,16 +438,16 @@ Item {
                             implicitSize: (!root.showNumbers && wsConfig.showAppIcons) ? workspaceIconSize : workspaceIconSizeShrinked
 
                             Behavior on opacity {
-                                animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                                animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                             }
                             Behavior on anchors.bottomMargin {
-                                animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                                animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                             }
                             Behavior on anchors.rightMargin {
-                                animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                                animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                             }
                             Behavior on implicitSize {
-                                animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                                animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                             }
                         }
 
@@ -513,10 +513,10 @@ Item {
                     : ColorUtils.transparentize(Appearance.m3colors.m3secondaryContainer, 0.4)
 
                 Behavior on radiusPrev {
-                    animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
+                    animation: NumberAnimation { duration: Appearance.animation.elementMove.duration; easing.type: Appearance.animation.elementMove.type; easing.bezierCurve: Appearance.animation.elementMove.bezierCurve }
                 }
                 Behavior on radiusNext {
-                    animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
+                    animation: NumberAnimation { duration: Appearance.animation.elementMove.duration; easing.type: Appearance.animation.elementMove.type; easing.bezierCurve: Appearance.animation.elementMove.bezierCurve }
                 }
             }
         }
@@ -598,7 +598,7 @@ Item {
                         color: parent.dotColor
 
                         Behavior on opacity {
-                            animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                            animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                         }
                     }
 
@@ -617,7 +617,7 @@ Item {
                             implicitSize: root.workspaceIconSize
 
                             Behavior on opacity {
-                                animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                                animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                             }
                         }
 

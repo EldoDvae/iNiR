@@ -69,7 +69,7 @@ ComboBox {
             : root._borderColor
 
         Behavior on color {
-            animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
+            animation: ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
         }
     }
 
@@ -140,7 +140,7 @@ ComboBox {
                 : "transparent"
 
             Behavior on color {
-                animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
+                animation: ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
             }
         }
 

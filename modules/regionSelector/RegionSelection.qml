@@ -563,13 +563,13 @@ PanelWindow {
                     }
                 }
                 Behavior on opacity {
-                    animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                    animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                 }
                 Behavior on anchors.topMargin {
-                    animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
+                    animation: NumberAnimation { duration: Appearance.animation.elementMove.duration; easing.type: Appearance.animation.elementMove.type; easing.bezierCurve: Appearance.animation.elementMove.bezierCurve }
                 }
                 Behavior on anchors.bottomMargin {
-                    animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
+                    animation: NumberAnimation { duration: Appearance.animation.elementMove.duration; easing.type: Appearance.animation.elementMove.type; easing.bezierCurve: Appearance.animation.elementMove.bezierCurve }
                 }
 
                 Loader {

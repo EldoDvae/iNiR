@@ -19,7 +19,7 @@ Item {
 
     property real radius: style === "border" ? 90 : 0
     Behavior on radius {
-        animation: Appearance.animation.elementResize.numberAnimation.createObject(this)
+        animation: NumberAnimation { duration: Appearance.animation.elementResize.duration; easing.type: Appearance.animation.elementResize.type; easing.bezierCurve: Appearance.animation.elementResize.bezierCurve }
     }
 
     rotation: {

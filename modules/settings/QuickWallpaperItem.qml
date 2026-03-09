@@ -35,7 +35,7 @@ MouseArea {
         border.width: root.isSelected ? 2 : 0
         border.color: Appearance.colors.colPrimary
         Behavior on color {
-            animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
+            animation: ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
         }
         Behavior on border.width {
             NumberAnimation { duration: 150 }

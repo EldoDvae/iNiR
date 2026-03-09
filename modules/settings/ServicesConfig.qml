@@ -382,8 +382,8 @@ ContentPage {
                     return Appearance.colors.colLayer0Border
                 }
 
-                Behavior on color { animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this) }
-                Behavior on border.color { animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this) }
+                Behavior on color { animation: ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve } }
+                Behavior on border.color { animation: ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve } }
 
                 ColumnLayout {
                     id: statusCardCol

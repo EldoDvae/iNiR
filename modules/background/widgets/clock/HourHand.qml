@@ -15,7 +15,7 @@ Item {
 
     property real fillColorAlpha: root.style === "hollow" ? 0 : 1
     Behavior on fillColorAlpha {
-        animation: Appearance.animation.elementResize.numberAnimation.createObject(this)
+        animation: NumberAnimation { duration: Appearance.animation.elementResize.duration; easing.type: Appearance.animation.elementResize.type; easing.bezierCurve: Appearance.animation.elementResize.bezierCurve }
     }
 
     rotation: -90 + (360 / 12) * (root.clockHour + root.clockMinute / 60)
@@ -39,7 +39,7 @@ Item {
         border.width: 4
 
         Behavior on x {
-            animation: Appearance.animation.elementResize.numberAnimation.createObject(this)
+            animation: NumberAnimation { duration: Appearance.animation.elementResize.duration; easing.type: Appearance.animation.elementResize.type; easing.bezierCurve: Appearance.animation.elementResize.bezierCurve }
         }
     }
 }

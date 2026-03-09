@@ -52,17 +52,17 @@ GroupButton {
     enableImplicitWidthAnimation: !editMode && root.mouseArea.containsMouse
     enableImplicitHeightAnimation: !editMode && root.mouseArea.containsMouse
     Behavior on baseWidth {
-        animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
+        animation: NumberAnimation { duration: Appearance.animation.elementMove.duration; easing.type: Appearance.animation.elementMove.type; easing.bezierCurve: Appearance.animation.elementMove.bezierCurve }
     }
     Behavior on baseHeight {
-        animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
+        animation: NumberAnimation { duration: Appearance.animation.elementMove.duration; easing.type: Appearance.animation.elementMove.type; easing.bezierCurve: Appearance.animation.elementMove.bezierCurve }
     }
     opacity: 0
     Component.onCompleted: {
         opacity = 1
     }
     Behavior on opacity {
-        animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+        animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
     }
 
 

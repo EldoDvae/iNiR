@@ -132,7 +132,7 @@ Item {
                                         ? (Appearance.inirEverywhere ? Appearance.inir.colTextSecondary : Appearance.colors.colSubtext)
                                         : (Appearance.inirEverywhere ? Appearance.inir.colText : Appearance.colors.colOnLayer0)
                                     Behavior on fill { enabled: Appearance.animationsEnabled; NumberAnimation { duration: Appearance.animation.elementMoveFast.duration } }
-                                    Behavior on color { enabled: Appearance.animationsEnabled; animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this) }
+                                    Behavior on color { enabled: Appearance.animationsEnabled; animation: ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve } }
                                 }
 
                                 StyledText {
@@ -146,7 +146,7 @@ Item {
 
                                     Behavior on color {
                                         enabled: Appearance.animationsEnabled
-                                        animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
+                                        animation: ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                                     }
                                 }
                             }

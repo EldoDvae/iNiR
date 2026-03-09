@@ -229,7 +229,7 @@ Rectangle {
                 visible: implicitHeight > 0
 
                 Behavior on implicitHeight {
-                    animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
+                    animation: NumberAnimation { duration: Appearance.animation.elementMove.duration; easing.type: Appearance.animation.elementMove.type; easing.bezierCurve: Appearance.animation.elementMove.bezierCurve }
                 }
                 FadeLoader {
                     id: loadingIndicatorLoader

@@ -273,7 +273,7 @@ ContentPage {
                                         anchors.fill: parent
                                         radius: parent.radius
                                         color: Qt.rgba(0, 0, 0, bgMultiMonPanel.showBackdropView && bgMonDelegate.isSelected ? 0 : 0.45)
-                                        Behavior on color { enabled: Appearance.animationsEnabled; animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this) }
+                                        Behavior on color { enabled: Appearance.animationsEnabled; animation: ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve } }
                                     }
 
                                     // "Backdrop" label

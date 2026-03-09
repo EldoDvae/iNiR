@@ -104,7 +104,7 @@ TabButton {
         }
         
         Behavior on color {
-            animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
+            animation: ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
         }
 
         Item {
@@ -159,7 +159,7 @@ TabButton {
                     fill: selected ? 1 : 0
                     color: selected ? Appearance.colors.colPrimary : Appearance.colors.colOnLayer1
                     Behavior on color {
-                        animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
+                        animation: ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                     }
                 }
             }
@@ -170,7 +170,7 @@ TabButton {
                 color: selected ? Appearance.colors.colPrimary : Appearance.colors.colOnLayer1
                 text: buttonText
                 Behavior on color {
-                    animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
+                    animation: ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                 }
             }
         }

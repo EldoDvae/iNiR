@@ -79,7 +79,7 @@ Scope { // Scope
                 }
 
                 Behavior on scale {
-                    animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                    animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                 }
 
                 Keys.onPressed: (event) => { // Esc to close

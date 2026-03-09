@@ -64,19 +64,19 @@ Button {
 
     Behavior on implicitWidth {
         enabled: root.enableImplicitWidthAnimation
-        animation: Appearance.animation.clickBounce.numberAnimation.createObject(this)
+        animation: NumberAnimation { duration: Appearance.animation.clickBounce.duration; easing.type: Appearance.animation.clickBounce.type; easing.bezierCurve: Appearance.animation.clickBounce.bezierCurve }
     }
 
     Behavior on implicitHeight {
         enabled: root.enableImplicitHeightAnimation
-        animation: Appearance.animation.clickBounce.numberAnimation.createObject(this)
+        animation: NumberAnimation { duration: Appearance.animation.clickBounce.duration; easing.type: Appearance.animation.clickBounce.type; easing.bezierCurve: Appearance.animation.clickBounce.bezierCurve }
     }
 
     Behavior on leftRadius {
-        animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+        animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
     }
     Behavior on rightRadius {
-        animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+        animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
     }
 
     // TapHandler for right-click (altAction) - works better with Button control
@@ -138,7 +138,7 @@ Button {
 
         color: root.color
         Behavior on color {
-            animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
+            animation: ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
         }
     }
 

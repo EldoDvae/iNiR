@@ -341,7 +341,7 @@ ContentPage {
 
                         Behavior on Layout.preferredHeight {
                             enabled: Appearance.animationsEnabled
-                            animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                            animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                         }
                     }
 
@@ -605,11 +605,11 @@ ContentPage {
 
                                     Behavior on opacity {
                                         enabled: Appearance.animationsEnabled
-                                        animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                                        animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                                     }
                                     Behavior on z {
                                         enabled: Appearance.animationsEnabled
-                                        animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                                        animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                                     }
 
                                     StyledImage {
@@ -728,11 +728,11 @@ ContentPage {
                                     opacity: monitorStack.isSelected ? 1.0 : (monCardMa.containsMouse ? 0.95 : 0.8)
                                     Behavior on scale {
                                         enabled: Appearance.animationsEnabled
-                                        animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                                        animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                                     }
                                     Behavior on opacity {
                                         enabled: Appearance.animationsEnabled
-                                        animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                                        animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                                     }
 
                                     MouseArea {
@@ -892,7 +892,7 @@ ContentPage {
                                         border.color: Appearance.colors.colPrimary
                                         Behavior on border.width {
                                             enabled: Appearance.animationsEnabled
-                                            animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                                            animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                                         }
                                     }
                                 }
@@ -972,11 +972,11 @@ ContentPage {
                                         opacity: splitMonCard.isSelected ? 1.0 : 0.75
                                         Behavior on scale {
                                             enabled: Appearance.animationsEnabled
-                                            animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                                            animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                                         }
                                         Behavior on opacity {
                                             enabled: Appearance.animationsEnabled
-                                            animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                                            animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                                         }
 
                                         MouseArea {
@@ -1142,7 +1142,7 @@ ContentPage {
                                             border.color: Appearance.colors.colPrimary
                                             Behavior on border.width {
                                                 enabled: Appearance.animationsEnabled
-                                                animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                                                animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                                             }
                                         }
                                     }

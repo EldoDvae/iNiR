@@ -19,7 +19,7 @@ RippleButton {
         color: root.enabled ? Appearance.m3colors.m3onSurface : Appearance.m3colors.m3outline
 
         Behavior on color {
-            animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
+            animation: ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
         }
     }
 
