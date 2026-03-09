@@ -68,6 +68,7 @@ ListView {
     }
 
     add: Transition {
+        enabled: animateAppearance
         NumberAnimation {
             properties: popin ? "opacity,scale" : "opacity"
             from: 0
@@ -75,17 +76,16 @@ ListView {
             duration: Appearance.animation.elementMove.duration
             easing.type: Appearance.animation.elementMove.type
             easing.bezierCurve: Appearance.animation.elementMove.bezierCurve
-            running: animateAppearance
         }
     }
 
     addDisplaced: Transition {
+        enabled: animateAppearance
         NumberAnimation {
             property: "y"
             duration: Appearance.animation.elementMove.duration
             easing.type: Appearance.animation.elementMove.type
             easing.bezierCurve: Appearance.animation.elementMove.bezierCurve
-            running: animateAppearance
         }
         NumberAnimation {
             properties: popin ? "opacity,scale" : "opacity"
@@ -93,17 +93,16 @@ ListView {
             duration: Appearance.animation.elementMove.duration
             easing.type: Appearance.animation.elementMove.type
             easing.bezierCurve: Appearance.animation.elementMove.bezierCurve
-            running: animateAppearance
         }
     }
 
     displaced: Transition {
+        enabled: root.animateMovement
         NumberAnimation {
             property: "y"
             duration: Appearance.animation.elementMove.duration
             easing.type: Appearance.animation.elementMove.type
             easing.bezierCurve: Appearance.animation.elementMove.bezierCurve
-            running: root.animateMovement
         }
         NumberAnimation {
             properties: "opacity,scale"
@@ -111,17 +110,16 @@ ListView {
             duration: Appearance.animation.elementMove.duration
             easing.type: Appearance.animation.elementMove.type
             easing.bezierCurve: Appearance.animation.elementMove.bezierCurve
-            running: root.animateMovement
         }
     }
 
     move: Transition {
+        enabled: root.animateMovement
         NumberAnimation {
             property: "y"
             duration: Appearance.animation.elementMove.duration
             easing.type: Appearance.animation.elementMove.type
             easing.bezierCurve: Appearance.animation.elementMove.bezierCurve
-            running: root.animateMovement
         }
         NumberAnimation {
             properties: "opacity,scale"
@@ -129,16 +127,15 @@ ListView {
             duration: Appearance.animation.elementMove.duration
             easing.type: Appearance.animation.elementMove.type
             easing.bezierCurve: Appearance.animation.elementMove.bezierCurve
-            running: root.animateMovement
         }
     }
     moveDisplaced: Transition {
+        enabled: root.animateMovement
         NumberAnimation {
             property: "y"
             duration: Appearance.animation.elementMove.duration
             easing.type: Appearance.animation.elementMove.type
             easing.bezierCurve: Appearance.animation.elementMove.bezierCurve
-            running: root.animateMovement
         }
         NumberAnimation {
             properties: "opacity,scale"
@@ -146,18 +143,17 @@ ListView {
             duration: Appearance.animation.elementMove.duration
             easing.type: Appearance.animation.elementMove.type
             easing.bezierCurve: Appearance.animation.elementMove.bezierCurve
-            running: root.animateMovement
         }
     }
 
     remove: Transition {
+        enabled: animateAppearance
         NumberAnimation {
             property: "x"
             to: root.width + root.removeOvershoot
             duration: Appearance.animation.elementMove.duration
             easing.type: Appearance.animation.elementMove.type
             easing.bezierCurve: Appearance.animation.elementMove.bezierCurve
-            running: animateAppearance
         }
         NumberAnimation {
             property: "opacity"
@@ -165,18 +161,17 @@ ListView {
             duration: Appearance.animation.elementMove.duration
             easing.type: Appearance.animation.elementMove.type
             easing.bezierCurve: Appearance.animation.elementMove.bezierCurve
-            running: animateAppearance
         }
     }
 
     // This is movement when something is removed, not removing animation!
     removeDisplaced: Transition {
+        enabled: animateAppearance
         NumberAnimation {
             property: "y"
             duration: Appearance.animation.elementMove.duration
             easing.type: Appearance.animation.elementMove.type
             easing.bezierCurve: Appearance.animation.elementMove.bezierCurve
-            running: animateAppearance
         }
         NumberAnimation {
             properties: "opacity,scale"
@@ -184,7 +179,6 @@ ListView {
             duration: Appearance.animation.elementMove.duration
             easing.type: Appearance.animation.elementMove.type
             easing.bezierCurve: Appearance.animation.elementMove.bezierCurve
-            running: animateAppearance
         }
     }
 }
