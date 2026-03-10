@@ -136,3 +136,13 @@ else
 fi
 
 log "Applied theme '$THEME_NAME' (scheme '$SCHEME_NAME')."
+
+# Ensure visible live update when Spotify is currently running.
+# Some environments don't reflect refreshed styles until process restart.
+if pgrep -x spotify >/dev/null 2>&1; then
+  if spicetify restart >> "$LOG_FILE" 2>&1; then
+    log "Restarted Spotify to apply updated colors live."
+  else
+    log "Spotify restart command failed; theme will apply on next launch."
+  fi
+fi
