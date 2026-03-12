@@ -18,7 +18,7 @@ import qs.modules.waffle.settings
 ApplicationWindow {
     id: root
     
-    property bool uiReady: Config.ready && ThemeService.ready
+    property bool uiReady: Config.ready
     
     property var pages: [
         {

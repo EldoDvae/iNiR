@@ -88,7 +88,7 @@ ApplicationWindow {
         }
     ]
     property int currentPage: 0
-    property bool uiReady: Config.ready && ThemeService.ready
+    property bool uiReady: Config.ready
 
     // Global settings search
     property string settingsSearchText: ""
@@ -1468,7 +1468,13 @@ ApplicationWindow {
 
     Shortcut {
         sequences: [StandardKey.Find]
-        onActivated: settingsSearchField.forceActiveFocus()
+        onActivated: {
+            settingsSearchField.forceActiveFocus()
+            if (!pagesStack.preloadRequested) {
+                pagesStack.preloadRequested = true
+                preloadTimer.start()
+            }
+        }
     }
 
     ColumnLayout {
@@ -1501,59 +1507,103 @@ ApplicationWindow {
             }
         }
 
-        Item { // Titlebar
+        RowLayout { // Titlebar with integrated search
             visible: Config.options?.windows?.showTitlebar ?? true
             Layout.fillWidth: true
-            Layout.fillHeight: false
-            implicitHeight: Math.max(titleText.implicitHeight, windowControlsRow.implicitHeight)
-            StyledText {
-                id: titleText
-                anchors {
-                    left: (Config.options?.windows?.centerTitle ?? false) ? undefined : parent.left
-                    horizontalCenter: (Config.options?.windows?.centerTitle ?? false) ? parent.horizontalCenter : undefined
-                    verticalCenter: parent.verticalCenter
-                    leftMargin: 12
-                }
-                color: Appearance.colors.colOnLayer0
-                text: Translation.tr("Settings")
-                font {
-                    family: Appearance.font.family.title
-                    pixelSize: Appearance.font.pixelSize.title
-                    variableAxes: Appearance.font.variableAxes.title
-                }
-            }
-            RowLayout { // Window controls row
-                id: windowControlsRow
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.right: parent.right
-                RippleButton {
-                    buttonRadius: Appearance.rounding.full
-                    implicitWidth: 35
-                    implicitHeight: 35
-                    onClicked: root.close()
-                    contentItem: MaterialSymbol {
+            Layout.preferredHeight: 52
+            Layout.leftMargin: 12
+            Layout.rightMargin: 6
+            spacing: 12
+
+                Item {
+                    implicitWidth: 36
+                    implicitHeight: 36
+
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: width / 2
+                        color: Appearance.colors.colLayer1
+                        border.width: 1
+                        border.color: Appearance.colors.colPrimary
+                    }
+
+                    Rectangle {
+                        id: settingsAvatarMask
                         anchors.centerIn: parent
-                        horizontalAlignment: Text.AlignHCenter
-                        text: "close"
-                        iconSize: 20
+                        width: 32
+                        height: 32
+                        radius: width / 2
+                        visible: false
+                    }
+
+                    Image {
+                        id: settingsAvatarImage
+                        anchors.centerIn: parent
+                        width: 32
+                        height: 32
+                        source: `file://${Directories.userAvatarPathRicersAndWeirdSystems}`
+                        fillMode: Image.PreserveAspectCrop
+                        asynchronous: true
+                        cache: true
+                        smooth: true
+                        mipmap: true
+                        visible: false
+                        onStatusChanged: {
+                            if (status === Image.Error) {
+                                source = `file://${Directories.userAvatarPathAccountsService}`
+                            }
+                        }
+                    }
+
+                    OpacityMask {
+                        anchors.centerIn: parent
+                        width: 32
+                        height: 32
+                        source: settingsAvatarImage
+                        maskSource: settingsAvatarMask
+                        visible: settingsAvatarImage.status === Image.Ready
+                    }
+
+                    MaterialSymbol {
+                        anchors.centerIn: parent
+                        visible: settingsAvatarImage.status !== Image.Ready
+                        text: "person"
+                        iconSize: 18
+                        color: Appearance.colors.colPrimary
                     }
                 }
-            }
-        }
 
-        // Global settings search bar - Material Design style
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.topMargin: 12
-            Layout.bottomMargin: 8
+                ColumnLayout {
+                    spacing: 0
 
-            Item { Layout.fillWidth: true }
+                    StyledText {
+                        color: Appearance.colors.colOnLayer0
+                        text: Translation.tr("Settings")
+                        font {
+                            family: Appearance.font.family.title
+                            pixelSize: Appearance.font.pixelSize.title
+                            variableAxes: Appearance.font.variableAxes.title
+                        }
+                    }
 
-            // Search container with visual feedback
+                    StyledText {
+                        text: SystemInfo.displayName || SystemInfo.username
+                        color: Appearance.colors.colSubtext
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        elide: Text.ElideRight
+                    }
+                }
+
+                Item { Layout.fillWidth: true; Layout.minimumWidth: 8 }
+
+                // Search container with visual feedback
             Rectangle {
                 id: searchContainer
-                Layout.preferredWidth: Math.min(560, root.width - 200)
-                Layout.preferredHeight: 48
+                Layout.fillWidth: true
+                Layout.maximumWidth: 480
+                Layout.minimumWidth: 200
+                Layout.preferredHeight: 40
+                Layout.alignment: Qt.AlignVCenter
                 radius: Appearance.rounding.full
                 color: settingsSearchField.activeFocus
                     ? (Appearance.angelEverywhere ? Appearance.angel.colGlassCard
@@ -1644,6 +1694,10 @@ ApplicationWindow {
                             text: root.settingsSearchText
                             onTextChanged: {
                                 root.settingsSearchText = text;
+                                if (text.length > 0 && !pagesStack.preloadRequested) {
+                                    pagesStack.preloadRequested = true
+                                    preloadTimer.start()
+                                }
                                 root.recomputeSettingsSearchResults();
                             }
 
@@ -1714,7 +1768,32 @@ ApplicationWindow {
                 }
             }
 
-            Item { Layout.fillWidth: true }
+                Item { Layout.fillWidth: true; Layout.minimumWidth: 8 }
+
+                RippleButton {
+                    buttonRadius: Appearance.rounding.full
+                    implicitWidth: 35
+                    implicitHeight: 35
+                    onClicked: Quickshell.execDetached(["/usr/bin/qs", "-c", "ii", "ipc", "call", "lock", "activate"])
+                    contentItem: MaterialSymbol {
+                        anchors.centerIn: parent
+                        horizontalAlignment: Text.AlignHCenter
+                        text: "lock"
+                        iconSize: 20
+                    }
+                }
+                RippleButton {
+                    buttonRadius: Appearance.rounding.full
+                    implicitWidth: 35
+                    implicitHeight: 35
+                    onClicked: root.close()
+                    contentItem: MaterialSymbol {
+                        anchors.centerIn: parent
+                        horizontalAlignment: Text.AlignHCenter
+                        text: "close"
+                        iconSize: 20
+                    }
+                }
         }
 
         RowLayout { // Window content with navigation rail and content pane
@@ -1820,6 +1899,7 @@ ApplicationWindow {
                     // Track which pages have been visited (for lazy loading with cache)
                     property var visitedPages: ({})
                     property int preloadIndex: 0
+                    property bool preloadRequested: false
 
                     Connections {
                         target: root
@@ -1832,8 +1912,6 @@ ApplicationWindow {
                     Component.onCompleted: {
                         // Mark initial page as visited
                         visitedPages[root.currentPage] = true
-                        // Start preloading other pages after a short delay
-                        preloadTimer.start()
                     }
 
                     // Preload all pages for search - faster interval

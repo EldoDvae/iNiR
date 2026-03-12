@@ -1,3 +1,4 @@
+import qs
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -473,6 +474,9 @@ ContentPage {
                 spacing: Appearance.sizes.spacingSmall
 
                 property string selectedMonitor: {
+                    const primary = GlobalStates.primaryScreen
+                    const primaryName = primary ? (WallpaperListener.getMonitorName(primary) ?? "") : ""
+                    if (primaryName) return primaryName
                     const focused = WallpaperListener.getFocusedMonitor()
                     if (focused) return focused
                     const screens = Quickshell.screens
