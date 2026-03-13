@@ -230,6 +230,26 @@ Top bar visibility.
 
 ---
 
+### globalActions
+
+Command palette / action registry. Search and execute shell actions from scripts or keybinds.
+
+| Function | Description |
+|----------|-------------|
+| `run <id> [args]` | Execute action by ID (e.g. `toggle-mute`, `install-package vim`) |
+| `list [category]` | List all actions, optionally filtered by category |
+| `search <query>` | Fuzzy search actions by name/description/keywords |
+| `open` | Open the overview in action mode |
+
+Categories: `system`, `appearance`, `tools`, `media`, `settings`, `custom`.
+
+```kdl
+bind "Super+Slash" { spawn "qs" "-c" "ii" "ipc" "call" "globalActions" "open"; }
+bind "Super+M" { spawn "qs" "-c" "ii" "ipc" "call" "globalActions" "run" "toggle-mute"; }
+```
+
+---
+
 ### wallpaperSelector
 
 Wallpaper picker grid.
@@ -241,6 +261,18 @@ Wallpaper picker grid.
 ```kdl
 bind "Ctrl+Alt+T" { spawn "qs" "-c" "ii" "ipc" "call" "wallpaperSelector" "toggle"; }
 ```
+
+---
+
+### coverflowSelector
+
+Wallpaper coverflow (3D card) picker.
+
+| Function | Description |
+|----------|-------------|
+| `toggle` | Open/close coverflow selector |
+| `open` | Open coverflow selector |
+| `close` | Close coverflow selector |
 
 ---
 

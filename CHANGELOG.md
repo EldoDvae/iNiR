@@ -5,6 +5,37 @@ All notable changes to iNiR will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.13.2] - 2026-03-13
+
+### Added
+- **Keyboard-Pro Action Mode**: Comprehensive keyboard-driven command palette accessible via `/` prefix in the overview launcher. Navigate the entire shell without a mouse.
+- **Category tab bar**: SecondaryTabBar with animated indicator for All, System, Appearance, Tools, Media, and Settings categories.
+- **Arrow key navigation**: Left/Right arrows and Tab/Shift+Tab cycle categories; Up/Down navigate action list; Enter executes.
+- **Media playback actions**: Play/Pause, Next Track, Previous Track via MprisController integration.
+- **Volume controls**: Volume Up and Volume Down actions via Audio service.
+- **Screen recording toggle**: Start/stop wf-recorder from the action palette.
+- **Clipboard history action**: Open clipboard manager directly from action mode.
+- **Music recognition action**: Trigger SongRec music identification from the palette.
+- **Notepad action**: Quick-open the sidebar notepad.
+- **EasyEffects toggle**: Enable/disable audio equalizer from action mode.
+- **Wallpaper Coverflow action**: Open the coverflow wallpaper selector alongside the existing grid selector.
+- **Zoom controls**: Zoom In, Zoom Out, and Reset Zoom actions for accessibility.
+- **On-Screen Keyboard toggle**: Show/hide OSK from action mode.
+- **Panel family switching**: Switch between ii and waffle panel families from the palette.
+- **Paru package manager support**: All package actions (install, remove, update) detect and use paru as AUR helper alongside yay.
+- **Todo feedback**: Adding a todo now shows a desktop notification confirming the task was added, with usage hint when no text provided.
+
+### Changed
+- **Wallpaper selector split**: "Change Wallpaper" action now explicitly labeled as Grid or Coverflow, each closing the other before opening.
+- **AUR badge theming**: Replaced hardcoded `#1793d1` color with `Appearance.colors.colPrimary` / `Appearance.inir.colPrimary` tokens for proper style-aware rendering.
+- **System update action**: Now auto-detects yay/paru/pacman instead of using a hardcoded command.
+- **Package install action**: Uses runtime AUR helper detection (`yay > paru > sudo pacman`) instead of hardcoded `yay`.
+- **Tab bar spacing**: Added top margin to category tabs for better visual separation from the search bar.
+
+### Fixed
+- **iNiR style icon**: Replaced invalid "spark" Material Symbol with "terminal" for the Style: iNiR action.
+- **Action mode keyboard navigation**: Tab/Shift+Tab and Left/Right arrows now properly cycle categories both from the search input and from within the action list.
+
 ## [2.13.1] - 2026-03-12
 
 ### Added
