@@ -25,16 +25,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Paru package manager support**: All package actions (install, remove, update) detect and use paru as AUR helper alongside yay.
 - **Todo feedback**: Adding a todo now shows a desktop notification confirming the task was added, with usage hint when no text provided.
 
+- **Keyboard navigation hints footer**: Shows keybind hints (↑↓ Navigate, ↵ Run, Tab/←→ Category, Esc Close) at the bottom of the action panel for discoverability.
+
 ### Changed
 - **Wallpaper selector split**: "Change Wallpaper" action now explicitly labeled as Grid or Coverflow, each closing the other before opening.
 - **AUR badge theming**: Replaced hardcoded `#1793d1` color with `Appearance.colors.colPrimary` / `Appearance.inir.colPrimary` tokens for proper style-aware rendering.
 - **System update action**: Now auto-detects yay/paru/pacman instead of using a hardcoded command.
 - **Package install action**: Uses runtime AUR helper detection (`yay > paru > sudo pacman`) instead of hardcoded `yay`.
-- **Tab bar spacing**: Added top margin to category tabs for better visual separation from the search bar.
+- **Tab bar spacing**: Added horizontal margins (12px) and increased indicator padding (12px) for proper visual separation between category tabs.
+- **Package action refactor**: Deduplicated package install/remove logic into `_executePackageActionStatic` with value capture before component destruction.
 
 ### Fixed
 - **iNiR style icon**: Replaced invalid "spark" Material Symbol with "terminal" for the Style: iNiR action.
-- **Action mode keyboard navigation**: Tab/Shift+Tab and Left/Right arrows now properly cycle categories both from the search input and from within the action list.
+- **Left/Right arrows in search input**: Removed Left/Right arrow key interception from SearchBar to prevent conflict with text cursor movement. Category cycling from search now uses Tab/Shift+Tab only; Left/Right remain available from the action list delegates where there is no text cursor conflict.
+- **Up arrow on first item**: Pressing Up on the first action list item now returns focus to the search input via `returnToSearch` signal.
+- **Escape key**: Pressing Escape from within the action list now closes the overview.
+- **ReferenceError on action execute**: Refactored `onClicked` to capture action/package references before closing the overview, preventing use-after-destroy crashes.
 
 ## [2.13.1] - 2026-03-12
 
