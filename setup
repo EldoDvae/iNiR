@@ -52,6 +52,8 @@ run_migrate() {
     tui_title "iNiR Migrations"
     echo ""
 
+    sync_launcher_from_repo
+
     # Always apply REQUIRED migrations first
     run_migrations_auto
 
@@ -152,6 +154,17 @@ _check_privilege_prereqs() {
       echo ""
     fi
   fi
+}
+
+sync_launcher_from_repo() {
+    local launcher_target="${XDG_BIN_HOME}/inir"
+    if [[ -f "${REPO_ROOT}/scripts/inir" ]]; then
+        mkdir -p "$XDG_BIN_HOME"
+        cp -f "${REPO_ROOT}/scripts/inir" "$launcher_target"
+        chmod +x "$launcher_target"
+        ensure_launcher_path_in_shells "$XDG_BIN_HOME"
+        printf '%s\n' "$launcher_target"
+    fi
 }
 
 ###############################################################################
@@ -1046,13 +1059,34 @@ MATUGEN_SDDM_EOF
     fi
 
     local niri_config="${XDG_CONFIG_HOME}/niri/config.kdl"
+    local niri_startup_cfg="${XDG_CONFIG_HOME}/niri/config.d/50-startup.kdl"
+    local niri_binds_cfg="${XDG_CONFIG_HOME}/niri/config.d/70-binds.kdl"
     if [[ -f "$niri_config" && -x "${XDG_BIN_HOME}/inir" ]]; then
         local launcher_target_escaped="${XDG_BIN_HOME}/inir"
         launcher_target_escaped="${launcher_target_escaped//&/\\&}"
-        sed -i \
-            -e 's|spawn-at-startup "inir" "start"|spawn-at-startup "'"${launcher_target_escaped}"'" "start"|' \
-            -e 's|spawn "inir" "|spawn "'"${launcher_target_escaped}"'" "|g' \
-            "$niri_config"
+        if [[ -f "$niri_startup_cfg" ]]; then
+            sed -i \
+                -e 's|spawn-at-startup "inir" "start"|spawn-at-startup "'"${launcher_target_escaped}"'" "start"|' \
+                "$niri_startup_cfg"
+        else
+            sed -i \
+                -e 's|spawn-at-startup "inir" "start"|spawn-at-startup "'"${launcher_target_escaped}"'" "start"|' \
+                "$niri_config"
+        fi
+
+        if [[ -f "$niri_binds_cfg" ]]; then
+            sed -i \
+                -e 's|spawn "bash" "-lc" "exec \"\$(inir path)/scripts/launch-terminal.sh\""|spawn "'"${launcher_target_escaped}"'" "terminal"|' \
+                -e 's|spawn "bash" "-lc" "exec \"\$(inir path)/scripts/close-window.sh\""|spawn "'"${launcher_target_escaped}"'" "close-window"|' \
+                -e 's|spawn "inir" "|spawn "'"${launcher_target_escaped}"'" "|g' \
+                "$niri_binds_cfg"
+        else
+            sed -i \
+                -e 's|spawn "bash" "-lc" "exec \"\$(inir path)/scripts/launch-terminal.sh\""|spawn "'"${launcher_target_escaped}"'" "terminal"|' \
+                -e 's|spawn "bash" "-lc" "exec \"\$(inir path)/scripts/close-window.sh\""|spawn "'"${launcher_target_escaped}"'" "close-window"|' \
+                -e 's|spawn "inir" "|spawn "'"${launcher_target_escaped}"'" "|g' \
+                "$niri_config"
+        fi
     fi
 
     # DISABLED: webapps — requires quickshell-webengine rebuild, re-enable when ready

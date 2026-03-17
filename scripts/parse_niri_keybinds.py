@@ -379,12 +379,24 @@ def find_binds_block(content: str) -> str | None:
     return content[start:i-1] if depth == 0 else None
 
 
+def resolve_includes(content: str, config_dir: Path) -> str:
+    """Resolve include directives by inlining included file contents."""
+    def replace_include(match):
+        rel_path = match.group(1)
+        include_path = config_dir / rel_path
+        if include_path.exists():
+            return include_path.read_text()
+        return ''
+    return re.sub(r'^include\s+"([^"]+)"\s*$', replace_include, content, flags=re.MULTILINE)
+
+
 def parse_niri_config(config_path: Path) -> dict:
     """Parse the niri config and extract keybinds."""
     if not config_path.exists():
         return {'error': f'Config not found: {config_path}', 'children': []}
     
     content = config_path.read_text()
+    content = resolve_includes(content, config_path.parent)
     binds_content = find_binds_block(content)
     if not binds_content:
         return {'error': 'No binds block found', 'children': []}

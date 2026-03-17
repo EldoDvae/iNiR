@@ -1,0 +1,31 @@
+input {
+    keyboard {
+        xkb {
+            layout "us"
+        }
+        repeat-delay 250
+        repeat-rate 50
+    }
+    touchpad {
+        tap
+        tap-button-map "left-right-middle"
+    }
+    mouse {
+        accel-profile "flat"
+    }
+
+    mod-key "Super"
+    mod-key-nested "Alt"
+}
+
+gestures {
+    hot-corners {
+        // off
+    }
+}
+
+cursor {
+    xcursor-theme "capitaine-cursors-light"
+    xcursor-size 24
+    hide-when-typing
+}

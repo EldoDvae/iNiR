@@ -1,0 +1,93 @@
+binds {
+    Mod+Tab repeat=false { toggle-overview; }
+    Mod+Shift+E { quit; }
+    Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
+
+    Alt+Tab { spawn "inir" "altSwitcher" "next"; }
+    Alt+Shift+Tab { spawn "inir" "altSwitcher" "previous"; }
+
+    Super+G { spawn "inir" "overlay" "toggle"; }
+    Mod+Space repeat=false { spawn "inir" "overview" "toggle"; }
+    Mod+V { spawn "inir" "clipboard" "toggle"; }
+    Mod+Alt+L allow-when-locked=true { spawn "inir" "lock" "activate"; }
+
+    Mod+Shift+S { spawn "inir" "region" "screenshot"; }
+    Mod+Shift+X { spawn "inir" "region" "ocr"; }
+    Mod+Shift+A { spawn "inir" "region" "search"; }
+
+    Ctrl+Alt+T { spawn "inir" "wallpaperSelector" "toggle"; }
+    Mod+Comma { spawn "inir" "settings"; }
+    Mod+Slash { spawn "inir" "cheatsheet" "toggle"; }
+    Mod+Shift+W { spawn "inir" "panelFamily" "cycle"; }
+
+    Mod+T { spawn "inir" "terminal"; }
+    Mod+Return { spawn "inir" "terminal"; }
+    Super+E { spawn "nautilus"; }
+    Super+W { spawn "bash" "-c" "xdg-open https://"; }
+
+    Mod+Q repeat=false { spawn "inir" "close-window"; }
+    Mod+D { maximize-column; }
+    Mod+F { fullscreen-window; }
+    Mod+A { toggle-window-floating; }
+
+    Mod+Left { focus-column-left; }
+    Mod+Right { focus-column-right; }
+    Mod+Up { focus-window-up; }
+    Mod+Down { focus-window-down; }
+    Mod+H { focus-column-left; }
+    Mod+J { focus-window-down; }
+    Mod+K { focus-window-up; }
+    Mod+L { focus-column-right; }
+
+    Mod+Shift+Left { move-column-left; }
+    Mod+Shift+Right { move-column-right; }
+    Mod+Shift+Up { move-window-up; }
+    Mod+Shift+Down { move-window-down; }
+    Mod+Shift+H { move-column-left; }
+    Mod+Shift+J { move-window-down; }
+    Mod+Shift+K { move-window-up; }
+    Mod+Shift+L { move-column-right; }
+
+    Mod+1 { focus-workspace 1; }
+    Mod+2 { focus-workspace 2; }
+    Mod+3 { focus-workspace 3; }
+    Mod+4 { focus-workspace 4; }
+    Mod+5 { focus-workspace 5; }
+    Mod+6 { focus-workspace 6; }
+    Mod+7 { focus-workspace 7; }
+    Mod+8 { focus-workspace 8; }
+    Mod+9 { focus-workspace 9; }
+
+    Mod+Shift+1 { move-column-to-workspace 1; }
+    Mod+Shift+2 { move-column-to-workspace 2; }
+    Mod+Shift+3 { move-column-to-workspace 3; }
+    Mod+Shift+4 { move-column-to-workspace 4; }
+    Mod+Shift+5 { move-column-to-workspace 5; }
+
+    Print { screenshot; }
+    Ctrl+Print { screenshot-screen; }
+    Alt+Print { screenshot-window; }
+
+    XF86AudioRaiseVolume allow-when-locked=true { spawn "inir" "audio" "volumeUp"; }
+    XF86AudioLowerVolume allow-when-locked=true { spawn "inir" "audio" "volumeDown"; }
+    XF86AudioMute allow-when-locked=true { spawn "inir" "audio" "mute"; }
+    XF86AudioMicMute allow-when-locked=true { spawn "inir" "audio" "micMute"; }
+
+    XF86MonBrightnessUp allow-when-locked=true { spawn "inir" "brightness" "increment"; }
+    XF86MonBrightnessDown allow-when-locked=true { spawn "inir" "brightness" "decrement"; }
+
+    XF86AudioPlay { spawn "inir" "mpris" "playPause"; }
+    XF86AudioPause { spawn "inir" "mpris" "playPause"; }
+    XF86AudioNext { spawn "inir" "mpris" "next"; }
+    XF86AudioPrev { spawn "inir" "mpris" "previous"; }
+
+    Ctrl+Mod+Space { spawn "inir" "mpris" "playPause"; }
+    Mod+Alt+N { spawn "inir" "mpris" "next"; }
+    Mod+Alt+P { spawn "inir" "mpris" "previous"; }
+    Mod+Shift+M { spawn "inir" "audio" "mute"; }
+    Mod+Shift+P { spawn "inir" "mpris" "playPause"; }
+    Mod+Shift+N { spawn "inir" "mpris" "next"; }
+    Mod+Shift+B { spawn "inir" "mpris" "previous"; }
+
+    Mod+Shift+Q { spawn "inir" "session" "toggle"; }
+}

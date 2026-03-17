@@ -303,20 +303,31 @@ Singleton {
         }
     }
 
-    // Niri animations control
-    readonly property string niriConfigPath: Quickshell.env("HOME") + "/.config/niri/config.kdl"
+    // Niri animations control — targets the modular animations file
+    readonly property string niriAnimationsPath: {
+        const configDir = (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config"))
+        const modularPath = configDir + "/niri/config.d/60-animations.kdl"
+        const legacyPath = configDir + "/niri/config.kdl"
+        return modularPath
+    }
+    readonly property string niriConfigPath: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/niri/config.kdl"
 
     function setNiriAnimations(enabled) {
         if (!controlNiriAnimations) return
 
+        // Try modular file first, fall back to root config.kdl
+        const targetFile = niriAnimationsPath
+        const fallbackFile = niriConfigPath
         const sedExpr = enabled
-            ? "sed -i '/^animations {/,/^}/ s/^\\([ \\t]*\\)off$/\\1\\/\\/off/' \"" + niriConfigPath + "\"\n"
-            : "sed -i '/^animations {/,/^}/ s/^\\([ \\t]*\\)\\/\\/off$/\\1off/' \"" + niriConfigPath + "\"\n"
+            ? "sed -i '/^animations {/,/^}/ s/^\\([ \\t]*\\)off$/\\1\\/\\/off/'"
+            : "sed -i '/^animations {/,/^}/ s/^\\([ \\t]*\\)\\/\\/off$/\\1off/'"
 
         niriAnimProcess.command = [
             "/usr/bin/bash",
             "-c",
-            sedExpr + "/usr/bin/niri msg action reload-config"
+            "if [ -f \"" + targetFile + "\" ]; then " + sedExpr + " \"" + targetFile + "\"; " +
+            "else " + sedExpr + " \"" + fallbackFile + "\"; fi\n" +
+            "/usr/bin/niri msg action reload-config"
         ]
         niriAnimProcess.running = true
     }

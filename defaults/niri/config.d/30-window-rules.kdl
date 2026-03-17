@@ -1,0 +1,9 @@
+window-rule {
+    geometry-corner-radius 16
+    clip-to-geometry true
+}
+
+window-rule {
+    match is-active=false
+    opacity 0.9
+}

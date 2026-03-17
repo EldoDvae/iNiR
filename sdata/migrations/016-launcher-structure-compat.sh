@@ -7,7 +7,7 @@ MIGRATION_REQUIRED=true
 migration_check() {
   local config="${XDG_CONFIG_HOME:-$HOME/.config}/niri/config.kdl"
   [[ -f "$config" ]] || return 1
-  grep -Eq 'spawn-at-startup "qs" "-c" "(ii|inir)"|spawn-at-startup "([^"]*/)?inir" "start"|spawn "qs" "-c" "(ii|inir)"|spawn "([^"]*/)?inir"|\.config/quickshell/(ii|inir)/scripts/(launch-terminal|close-window)\.sh|\$\(inir path\)/scripts/(launch-terminal|close-window)\.sh' "$config"
+  grep -Eq 'spawn-at-startup "qs" "-c" "(ii|inir)"|spawn-at-startup "inir" "start"|spawn "qs" "-c" "(ii|inir)"( "ipc" "call")?|spawn "inir"( "ipc" "call")? |\.config/quickshell/(ii|inir)/scripts/(launch-terminal|close-window)\.sh|\$\(inir path\)/scripts/(launch-terminal|close-window)\.sh' "$config"
 }
 
 migration_preview() {
@@ -85,6 +85,12 @@ content = re.sub(
 content = re.sub(
     r'spawn\s+"(?:[^"]*/)?inir"\s+"([^"]+)"\s+"([^"]+)"\s*;',
     lambda match: f'spawn "{launcher_path}" "{match.group(1)}" "{match.group(2)}";',
+    content,
+)
+
+content = re.sub(
+    r'spawn\s+"inir"\s+"([^"]+)"\s*;',
+    lambda match: f'spawn "{launcher_path}" "{match.group(1)}";',
     content,
 )
 

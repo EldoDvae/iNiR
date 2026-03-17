@@ -141,8 +141,26 @@ is_migration_needed() {
 # Get real status of a migration (checks actual config, not just JSON)
 get_migration_real_status() {
     local migration_id="$1"
+    load_migration "$migration_id" 2>/dev/null || return 1
+    local is_required="${MIGRATION_REQUIRED:-false}"
     
-    # First check JSON state
+    if [[ "$is_required" == "true" ]]; then
+        if is_migration_needed "$migration_id"; then
+            echo "pending"
+            return
+        fi
+
+        if ! is_migration_applied "$migration_id"; then
+            mark_migration_applied "$migration_id"
+            echo "auto-applied"
+            return
+        fi
+
+        echo "applied"
+        return
+    fi
+
+    # Optional migrations honor user skip/applied state first.
     if is_migration_skipped "$migration_id"; then
         echo "skipped"
         return
@@ -153,11 +171,9 @@ get_migration_real_status() {
         return
     fi
     
-    # Check if actually needed
     if is_migration_needed "$migration_id"; then
         echo "pending"
     else
-        # Config already has the changes, auto-mark as applied
         mark_migration_applied "$migration_id"
         echo "auto-applied"
     fi
@@ -396,12 +412,12 @@ run_migrations_interactive() {
 }
 
 run_migrations_auto() {
-    local pending=($(get_pending_migrations))
-    
-    for migration_id in "${pending[@]}"; do
+    local migration_id
+
+    for migration_id in $(list_available_migrations); do
         load_migration "$migration_id"
-        if [[ "$MIGRATION_REQUIRED" == "true" ]]; then
-            apply_migration "$migration_id"
+        if [[ "${MIGRATION_REQUIRED:-false}" == "true" ]] && is_migration_needed "$migration_id"; then
+            apply_migration "$migration_id" true
         fi
     done
 }

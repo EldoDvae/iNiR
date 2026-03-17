@@ -95,6 +95,8 @@ What happens:
 
 The runtime sync does not overwrite your user configs directly. If a release needs config changes, required or optional migrations may update `config.json` or `config.kdl` with backup/rollback coverage.
 
+For legacy monolithic Niri configs, required migrations can now convert `~/.config/niri/config.kdl` into the modular `config.d/` layout automatically during update. The current config is preserved section-by-section, unknown top-level blocks are kept in `config.d/90-user-extra.kdl`, and the normal migration backup/rollback flow still applies.
+
 If `setup` detects that the active iNiR installation is externally managed, `inir update` does **not** pull or sync repo files into the runtime. In that case it:
 
 - Shows the detected install mode
@@ -150,6 +152,12 @@ What happens:
 - Lets you choose which migrations to apply
 - Required migrations are applied automatically during `update`
 - Optional migrations can be applied manually
+
+When the installer detects an older unified Niri config, the required migration path can split it into:
+
+- `config.kdl` include root
+- `config.d/10-80-*.kdl` standard sections
+- `config.d/90-user-extra.kdl` for preserved non-standard top-level content
 
 ## My Changes
 

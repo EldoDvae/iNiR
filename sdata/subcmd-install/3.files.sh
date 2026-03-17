@@ -212,16 +212,27 @@ case "${SKIP_NIRI}" in
     # If it exists, keep it and patch only the minimal launcher/theme bits below.
     if [[ -f "$NIRI_CONFIG" ]]; then
       log_success "Preserving existing Niri config"
-    elif [[ -f "defaults/niri/config.kdl" ]]; then
-      install_file "defaults/niri/config.kdl" "${XDG_CONFIG_HOME}/niri/config.kdl"
+    elif [[ -d "defaults/niri" ]]; then
+      install_dir__sync "defaults/niri" "${XDG_CONFIG_HOME}/niri"
       log_success "Niri config installed (defaults)"
     elif [[ -d "dots/.config/niri" ]]; then
-      install_file "dots/.config/niri/config.kdl" "${XDG_CONFIG_HOME}/niri/config.kdl"
+      install_dir__sync "dots/.config/niri" "${XDG_CONFIG_HOME}/niri"
       log_success "Niri config installed (dots)"
     fi
 
     # Patch config.kdl: detect polkit agent
     NIRI_CFG="${XDG_CONFIG_HOME}/niri/config.kdl"
+    NIRI_ENV_CFG="${XDG_CONFIG_HOME}/niri/config.d/40-environment.kdl"
+    NIRI_STARTUP_CFG="${XDG_CONFIG_HOME}/niri/config.d/50-startup.kdl"
+    NIRI_BINDS_CFG="${XDG_CONFIG_HOME}/niri/config.d/70-binds.kdl"
+    NIRI_ENV_TARGET="${NIRI_CFG}"
+    NIRI_STARTUP_TARGET="${NIRI_CFG}"
+    NIRI_BINDS_TARGET="${NIRI_CFG}"
+
+    [[ -f "$NIRI_ENV_CFG" ]] && NIRI_ENV_TARGET="$NIRI_ENV_CFG"
+    [[ -f "$NIRI_STARTUP_CFG" ]] && NIRI_STARTUP_TARGET="$NIRI_STARTUP_CFG"
+    [[ -f "$NIRI_BINDS_CFG" ]] && NIRI_BINDS_TARGET="$NIRI_BINDS_CFG"
+
     if [[ -f "$NIRI_CFG" ]]; then
       POLKIT_AGENT=""
       for agent in \
@@ -237,7 +248,7 @@ case "${SKIP_NIRI}" in
         fi
       done
       if [[ -n "$POLKIT_AGENT" ]]; then
-        sed -i "s|spawn-at-startup \"/usr/lib/mate-polkit/polkit-mate-authentication-agent-1\"|spawn-at-startup \"${POLKIT_AGENT}\"|" "$NIRI_CFG"
+        sed -i "s|spawn-at-startup \"/usr/lib/mate-polkit/polkit-mate-authentication-agent-1\"|spawn-at-startup \"${POLKIT_AGENT}\"|" "$NIRI_STARTUP_TARGET"
         log_success "Polkit agent: $(basename "$(dirname "$POLKIT_AGENT")")/$(basename "$POLKIT_AGENT")"
       else
         log_warning "No polkit agent found — sudo dialogs may not work"
@@ -257,18 +268,21 @@ case "${SKIP_NIRI}" in
         # No plasma-integration: fall back to qt6ct
         # NOTE: This is suboptimal — Darkly style won't read kdeglobals colors properly.
         # The user should install plasma-integration for correct Material You Qt theming.
-        sed -i 's/QT_QPA_PLATFORMTHEME "kde"/QT_QPA_PLATFORMTHEME "qt6ct"/' "$NIRI_CFG"
+        sed -i 's/QT_QPA_PLATFORMTHEME "kde"/QT_QPA_PLATFORMTHEME "qt6ct"/' "$NIRI_ENV_TARGET"
         log_warning "Qt theme: qt6ct (plasma-integration not found — install it for proper Qt theming)"
       fi
 
       _launcher_path_escaped="${INIR_LAUNCHER_PATH//&/\\&}"
-      _runtime_path_escaped="${II_TARGET//&/\\&}"
       sed -i \
-        -e 's|spawn-at-startup "inir" "start"|spawn-at-startup "'"${_launcher_path_escaped}"'" "start"|' \
-        -e 's|spawn "inir" "|spawn "'"${_launcher_path_escaped}"'" "|g' \
         -e 's|spawn "bash" "-lc" "exec \"\$(inir path)/scripts/launch-terminal.sh\""|spawn "'"${_launcher_path_escaped}"'" "terminal"|' \
         -e 's|spawn "bash" "-lc" "exec \"\$(inir path)/scripts/close-window.sh\""|spawn "'"${_launcher_path_escaped}"'" "close-window"|' \
-        "$NIRI_CFG"
+        "$NIRI_BINDS_TARGET"
+      sed -i \
+        -e 's|spawn-at-startup "inir" "start"|spawn-at-startup "'"${_launcher_path_escaped}"'" "start"|' \
+        "$NIRI_STARTUP_TARGET"
+      sed -i \
+        -e 's|spawn "inir" "|spawn "'"${_launcher_path_escaped}"'" "|g' \
+        "$NIRI_BINDS_TARGET"
     fi
     ;;
 esac
