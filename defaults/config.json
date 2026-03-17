@@ -122,6 +122,7 @@
             "enableChrome": true,
             "enableSpicetify": false,
             "useBackdropForColors": false,
+            "colorsOnlyMode": false,
             "terminalGenerationProps": {
                 "forceDarkMode": false,
                 "harmonizeThreshold": 100,
@@ -488,7 +489,7 @@
         "pinnedApps": [
             "org.gnome.Nautilus",
             "firefox",
-            "foot"
+            "kitty"
         ],
         "pinnedOnStartup": true,
         "showBackground": true,

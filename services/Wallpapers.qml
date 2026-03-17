@@ -405,12 +405,35 @@ Singleton {
             return
         }
 
+        // Always set wallpaper path from QML to avoid race condition with Config write timer
+        Config.setNestedValue("background.wallpaperPath", normalizedPath)
+        Config.setNestedValue("background.thumbnailPath", "")
         applyProc.exec([
             Directories.wallpaperSwitchScriptPath,
             "--image", normalizedPath,
-            "--mode", (darkMode ? "dark" : "light")
+            "--mode", (darkMode ? "dark" : "light"),
+            "--skip-config-write"
         ])
         root.changed()
+    }
+
+    // Apply only the color scheme from an image without changing the active wallpaper
+    function applyColorsOnly(imagePath, darkMode = Appearance.m3colors.darkmode) {
+        const normalizedPath = FileUtils.trimFileProtocol(String(imagePath ?? ""))
+        if (!normalizedPath || normalizedPath.length === 0) return
+
+        if (applyProc.running) applyProc.running = false
+
+        root._applyInProgress = true
+        _applySuppressTimer.restart()
+
+        applyProc.exec([
+            Directories.wallpaperSwitchScriptPath,
+            "--image", normalizedPath,
+            "--mode", (darkMode ? "dark" : "light"),
+            "--noswitch",
+            "--skip-config-write"
+        ])
     }
 
     function updatePerMonitorConfig(path: string, monitorName: string) {

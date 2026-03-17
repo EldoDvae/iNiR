@@ -99,7 +99,7 @@ ContentPage {
                 ColumnLayout {
                     RippleButtonWithIcon {
                         enabled: !randomWallProc.running
-                        visible: Config.options.policies.weeb === 1
+                        visible: (Config.options?.policies?.weeb ?? 0) === 1
                         Layout.fillWidth: true
                         buttonRadius: Appearance.rounding.small
                         materialIcon: "ifl"
@@ -114,7 +114,7 @@ ContentPage {
                     }
                     RippleButtonWithIcon {
                         enabled: !randomWallProc.running
-                        visible: Config.options.policies.weeb === 1
+                        visible: (Config.options?.policies?.weeb ?? 0) === 1
                         Layout.fillWidth: true
                         buttonRadius: Appearance.rounding.small
                         materialIcon: "ifl"
@@ -182,9 +182,9 @@ ContentPage {
             }
 
             ConfigSelectionArray {
-                currentValue: Config.options.appearance.palette.type
+                currentValue: Config.options?.appearance?.palette?.type ?? "auto"
                 onSelected: newValue => {
-                    Config.options.appearance.palette.type = newValue;
+                    Config.setNestedValue("appearance.palette.type", newValue)
                     Quickshell.execDetached(["/usr/bin/bash", "-c", `${Directories.wallpaperSwitchScriptPath} --noswitch --type ${newValue}`]);
                 }
                 options: [
@@ -230,12 +230,22 @@ ContentPage {
             SettingsSwitch {
                 buttonIcon: "ev_shadow"
                 text: Translation.tr("Transparency")
-                checked: Config.options.appearance.transparency.enable
+                checked: Config.options?.appearance?.transparency?.enable ?? false
                 onCheckedChanged: {
-                    Config.options.appearance.transparency.enable = checked;
+                    Config.setNestedValue("appearance.transparency.enable", checked)
                 }
                 StyledToolTip {
                     text: Translation.tr("Might look ass. Unsupported.")
+                }
+            }
+
+            SettingsSwitch {
+                buttonIcon: "palette"
+                text: Translation.tr("Colors only mode")
+                checked: Config.options?.appearance?.wallpaperTheming?.colorsOnlyMode ?? false
+                onCheckedChanged: Config.setNestedValue("appearance.wallpaperTheming.colorsOnlyMode", checked)
+                StyledToolTip {
+                    text: Translation.tr("Click thumbnails to apply only colors, without changing wallpaper")
                 }
             }
 
@@ -410,8 +420,11 @@ ContentPage {
                                         if (delegateItem.fileIsDir) return false
                                         if (multiMonitorPanel.visible && multiMonitorPanel.backdropViewActive)
                                             return delegateItem.filePath === multiMonitorPanel.backdropPath
-                                        const multiMon = Config.options?.background?.multiMonitor?.enable && multiMonitorPanel.selectedMonitor
-                                        return delegateItem.filePath === (multiMon ? (WallpaperListener.effectivePerMonitor[multiMonitorPanel.selectedMonitor]?.path ?? Config.options.background.wallpaperPath) : Config.options.background.wallpaperPath)
+                                        const multiMon = (Config.options?.background?.multiMonitor?.enable ?? false) && multiMonitorPanel.selectedMonitor
+                                        const currentWallpaperPath = Config.options?.background?.wallpaperPath ?? ""
+                                        return delegateItem.filePath === (multiMon
+                                            ? (WallpaperListener.effectivePerMonitor[multiMonitorPanel.selectedMonitor]?.path ?? currentWallpaperPath)
+                                            : currentWallpaperPath)
                                     }
                                     isHovered: delegateItem.index === wallpaperGrid.currentHoverIndex
 
@@ -429,6 +442,8 @@ ContentPage {
                                             }
                                             Config.setNestedValue("background.backdrop.useMainWallpaper", false)
                                             Wallpapers.ensureVideoFirstFrame(delegateItem.filePath)
+                                        } else if (Config.options?.appearance?.wallpaperTheming?.colorsOnlyMode) {
+                                            Wallpapers.applyColorsOnly(delegateItem.filePath, Appearance.m3colors.darkmode)
                                         } else {
                                             const mon = (Config.options?.background?.multiMonitor?.enable ?? false) ? (multiMonitorPanel.selectedMonitor || "") : ""
                                             Wallpapers.select(delegateItem.filePath, Appearance.m3colors.darkmode, mon);
@@ -1327,10 +1342,10 @@ ContentPage {
                 ContentSubsection {
                     title: Translation.tr("Bar position")
                     ConfigSelectionArray {
-                        currentValue: (Config.options.bar.bottom ? 1 : 0) | (Config.options.bar.vertical ? 2 : 0)
+                        currentValue: ((Config.options?.bar?.bottom ?? false) ? 1 : 0) | ((Config.options?.bar?.vertical ?? false) ? 2 : 0)
                         onSelected: newValue => {
-                            Config.options.bar.bottom = (newValue & 1) !== 0;
-                            Config.options.bar.vertical = (newValue & 2) !== 0;
+                            Config.setNestedValue("bar.bottom", (newValue & 1) !== 0)
+                            Config.setNestedValue("bar.vertical", (newValue & 2) !== 0)
                         }
                         options: [
                             {
@@ -1360,7 +1375,7 @@ ContentPage {
                     title: Translation.tr("Bar style")
 
                     ConfigSelectionArray {
-                        currentValue: Config.options.bar.cornerStyle
+                        currentValue: Config.options?.bar?.cornerStyle ?? 0
                         onSelected: newValue => {
                             // HUG mode (0) is incompatible with Angel style — revert to Float
                             if (newValue === 0 && Appearance.angelEverywhere) {
@@ -1395,9 +1410,9 @@ ContentPage {
                     title: Translation.tr("Screen round corner")
 
                     ConfigSelectionArray {
-                        currentValue: Config.options.appearance.fakeScreenRounding
+                        currentValue: Config.options?.appearance?.fakeScreenRounding ?? 0
                         onSelected: newValue => {
-                            Config.options.appearance.fakeScreenRounding = newValue;
+                            Config.setNestedValue("appearance.fakeScreenRounding", newValue)
                         }
                         options: [
                             {
@@ -1497,6 +1512,18 @@ ContentPage {
                 }
                 StyledToolTip {
                     text: Translation.tr("Turn off compositor animations when Game Mode is active")
+                }
+            }
+
+            SettingsSwitch {
+                buttonIcon: "visibility_off"
+                text: Translation.tr("Disable Discover overlay")
+                checked: Config.options?.gameMode?.disableDiscoverOverlay ?? true
+                onCheckedChanged: {
+                    Config.setNestedValue("gameMode.disableDiscoverOverlay", checked)
+                }
+                StyledToolTip {
+                    text: Translation.tr("Stop discover-overlay while Game Mode is active")
                 }
             }
 

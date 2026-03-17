@@ -315,6 +315,7 @@ Singleton {
                         property bool aide: true           // Aide
                     }
                     property bool useBackdropForColors: false
+                    property bool colorsOnlyMode: false
                     property JsonObject terminals: JsonObject {
                         property bool kitty: true
                         property bool alacritty: true
