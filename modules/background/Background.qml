@@ -105,6 +105,12 @@ Variants {
             return enabled && sensitiveWallpaper && sensitiveNetwork;
         }
         readonly property string fillMode: bgRoot.backgroundOptions.fillMode ?? "fill"
+        readonly property var panOptions: bgRoot.backgroundOptions.pan ?? {}
+        readonly property real panX: bgRoot.panOptions.x ?? 0.0
+        readonly property real panY: bgRoot.panOptions.y ?? 0.0
+        readonly property real panZoom: Math.max(1.0, Math.min(3.0, bgRoot.panOptions.zoom ?? 1.0))
+        readonly property bool hasPan: bgRoot.panX !== 0.0 || bgRoot.panY !== 0.0 || bgRoot.panZoom !== 1.0
+        property string _panReadyWallpaperPath: bgRoot.wallpaperPath
         readonly property bool parallaxEnabled: bgRoot.parallaxOptions.enable
             ?? ((bgRoot.parallaxOptions.enableWorkspace ?? false) || (bgRoot.parallaxOptions.enableSidebar ?? false))
         readonly property bool workspaceParallaxEnabled: bgRoot.parallaxEnabled && (bgRoot.parallaxOptions.enableWorkspace ?? false)
@@ -115,7 +121,7 @@ Variants {
         readonly property real parallaxWidgetDepth: ParallaxMath.resolveWidgetDepth(bgRoot.parallaxOptions, 1.2)
         readonly property bool pauseParallaxDuringTransitions: bgRoot.parallaxOptions.pauseDuringTransitions ?? true
         readonly property int parallaxTransitionSettleMs: ParallaxMath.resolveTransitionSettle(bgRoot.parallaxOptions, 220)
-        readonly property bool externalMainWallpaperActive: !wallpaperSafetyTriggered
+        readonly property bool externalMainWallpaperEligible: !wallpaperSafetyTriggered
             && !(bgRoot.backgroundOptions.backdrop?.hideWallpaper ?? false)
             && AwwwBackend.supportsVisibleMainWallpaper(
                 bgRoot.wallpaperPathRaw,
@@ -123,6 +129,10 @@ Variants {
                 bgRoot.dynamicParallaxRequested,
                 bgRoot.effectsOptions.enableAnimatedBlur ?? false
             )
+        readonly property bool effectiveHasPan: bgRoot.hasPan
+            && (!bgRoot.externalMainWallpaperEligible || bgRoot._panReadyWallpaperPath === bgRoot.wallpaperPath)
+        readonly property bool externalMainWallpaperActive: bgRoot.externalMainWallpaperEligible
+            && !bgRoot.effectiveHasPan
         property real wallpaperToScreenRatio: Math.min(wallpaperWidth / screen.width, wallpaperHeight / screen.height)
         property real preferredWallpaperScale: ParallaxMath.resolveZoom(bgRoot.parallaxOptions, 1.07)
         property real effectiveWallpaperScale: preferredWallpaperScale
@@ -280,6 +290,14 @@ Variants {
         }
 
         onWallpaperPathChanged: {
+            const normalizedPath = String(bgRoot.wallpaperPath ?? "")
+            if (bgRoot.hasPan && bgRoot.externalMainWallpaperEligible) {
+                bgRoot._panReadyWallpaperPath = ""
+                panActivationTimer.restart()
+            } else {
+                bgRoot._panReadyWallpaperPath = normalizedPath
+                panActivationTimer.stop()
+            }
             bgRoot.pauseParallaxForWallpaperTransition()
             if (bgRoot._awwwParallaxRevealNeeded) {
                 // Instantly hide crossfader BEFORE bindings propagate the new source.
@@ -294,9 +312,33 @@ Variants {
             bgRoot.updateZoomScale()
         }
 
+        onHasPanChanged: {
+            if (bgRoot.hasPan)
+                return
+            bgRoot._panReadyWallpaperPath = String(bgRoot.wallpaperPath ?? "")
+            panActivationTimer.stop()
+            bgRoot.updateZoomScale()
+        }
+
         onPreferredWallpaperScaleChanged: {
             if (bgRoot._awwwParallaxRevealNeeded)
                 bgRoot.effectiveWallpaperScale = bgRoot.preferredWallpaperScale
+        }
+
+        onPanZoomChanged: {
+            const normalizedPath = String(bgRoot.wallpaperPath ?? "")
+            if (!bgRoot.hasPan) {
+                bgRoot._panReadyWallpaperPath = normalizedPath
+                panActivationTimer.stop()
+                bgRoot.updateZoomScale()
+                return
+            }
+
+            if (bgRoot.externalMainWallpaperEligible && bgRoot._panReadyWallpaperPath !== normalizedPath)
+                return
+
+            bgRoot._panReadyWallpaperPath = normalizedPath
+            bgRoot.updateZoomScale()
         }
 
         function updateZoomScale(): void {
@@ -310,6 +352,18 @@ Variants {
             onTriggered: {
                 bgRoot.parallaxTransitionActive = false
                 parallaxResumeAnimation.restart()
+            }
+        }
+
+        Timer {
+            id: panActivationTimer
+            interval: bgRoot._wallpaperTransitionDurationMs + 120
+            repeat: false
+            onTriggered: {
+                const normalizedPath = String(bgRoot.wallpaperPath ?? "")
+                bgRoot._panReadyWallpaperPath = normalizedPath
+                if (bgRoot.hasPan)
+                    bgRoot.updateZoomScale()
             }
         }
 
@@ -359,11 +413,10 @@ Variants {
                     const screenWidth = bgRoot.screen?.width ?? 0
                     const screenHeight = bgRoot.screen?.height ?? 0
                     if (screenWidth > 0 && screenHeight > 0) {
-                        if (cached.width <= screenWidth || cached.height <= screenHeight) {
-                            bgRoot.effectiveWallpaperScale = Math.max(screenWidth / cached.width, screenHeight / cached.height)
-                        } else {
-                            bgRoot.effectiveWallpaperScale = Math.min(bgRoot.preferredWallpaperScale, cached.width / screenWidth, cached.height / screenHeight)
-                        }
+                        const baseScale = (cached.width <= screenWidth || cached.height <= screenHeight)
+                            ? Math.max(screenWidth / cached.width, screenHeight / cached.height)
+                            : Math.min(bgRoot.preferredWallpaperScale, cached.width / screenWidth, cached.height / screenHeight)
+                        bgRoot.effectiveWallpaperScale = bgRoot.effectiveHasPan ? baseScale * bgRoot.panZoom : baseScale
                     }
                     return
                 }
@@ -409,9 +462,11 @@ Variants {
                     if (bgRoot._awwwParallaxRevealNeeded) {
                         bgRoot.effectiveWallpaperScale = bgRoot.preferredWallpaperScale;
                     } else if (width <= screenWidth || height <= screenHeight) {
-                        bgRoot.effectiveWallpaperScale = Math.max(screenWidth / width, screenHeight / height);
+                        const baseScale = Math.max(screenWidth / width, screenHeight / height)
+                        bgRoot.effectiveWallpaperScale = bgRoot.effectiveHasPan ? baseScale * bgRoot.panZoom : baseScale
                     } else {
-                        bgRoot.effectiveWallpaperScale = Math.min(bgRoot.preferredWallpaperScale, width / screenWidth, height / screenHeight);
+                        const baseScale = Math.min(bgRoot.preferredWallpaperScale, width / screenWidth, height / screenHeight)
+                        bgRoot.effectiveWallpaperScale = bgRoot.effectiveHasPan ? baseScale * bgRoot.panZoom : baseScale
                     }
                     bgRoot.finishWallpaperMetricsRequest()
                 }
@@ -467,18 +522,24 @@ Variants {
                     && !bgRoot.wallpaperIsVideo
                     && !bgRoot.externalMainWallpaperActive
                 readonly property bool showInternalStaticWallpaper: !bgRoot.externalMainWallpaperActive
-                readonly property real targetX: useParallax ? (-(bgRoot.movableXSpace) - (activeValueX - 0.5) * 2 * bgRoot.movableXSpace) : 0
-                readonly property real targetY: useParallax ? (-(bgRoot.movableYSpace) - (activeValueY - 0.5) * 2 * bgRoot.movableYSpace) : 0
-                readonly property real targetWidth: useParallax ? (bgRoot.wallpaperWidth / bgRoot.wallpaperToScreenRatio * bgRoot.effectiveWallpaperScale) : bgRoot.screen.width
-                readonly property real targetHeight: useParallax ? (bgRoot.wallpaperHeight / bgRoot.wallpaperToScreenRatio * bgRoot.effectiveWallpaperScale) : bgRoot.screen.height
+                readonly property real panOffsetX: bgRoot.effectiveHasPan ? (bgRoot.panX * Math.max(0, bgRoot.movableXSpace)) : 0
+                readonly property real panOffsetY: bgRoot.effectiveHasPan ? (bgRoot.panY * Math.max(0, bgRoot.movableYSpace)) : 0
+                readonly property real targetX: useParallax
+                    ? (-(bgRoot.movableXSpace) - (activeValueX - 0.5) * 2 * bgRoot.movableXSpace + panOffsetX)
+                    : panOffsetX
+                readonly property real targetY: useParallax
+                    ? (-(bgRoot.movableYSpace) - (activeValueY - 0.5) * 2 * bgRoot.movableYSpace + panOffsetY)
+                    : panOffsetY
+                readonly property real targetWidth: (useParallax || bgRoot.effectiveHasPan) ? (bgRoot.wallpaperWidth / bgRoot.wallpaperToScreenRatio * bgRoot.effectiveWallpaperScale) : bgRoot.screen.width
+                readonly property real targetHeight: (useParallax || bgRoot.effectiveHasPan) ? (bgRoot.wallpaperHeight / bgRoot.wallpaperToScreenRatio * bgRoot.effectiveWallpaperScale) : bgRoot.screen.height
                 x: targetX
                 y: targetY
                 Behavior on x {
-                    enabled: Appearance.animationsEnabled && wallpaperContainer.useParallax && !bgRoot.parallaxTransitionActive && bgRoot.parallaxResumeProgress >= 1
+                    enabled: Appearance.animationsEnabled && (wallpaperContainer.useParallax || bgRoot.effectiveHasPan) && !bgRoot.parallaxTransitionActive && bgRoot.parallaxResumeProgress >= 1
                     animation: NumberAnimation { duration: Appearance.animation.elementMove.duration; easing.type: Appearance.animation.elementMove.type; easing.bezierCurve: Appearance.animation.elementMove.bezierCurve }
                 }
                 Behavior on y {
-                    enabled: Appearance.animationsEnabled && wallpaperContainer.useParallax && !bgRoot.parallaxTransitionActive && bgRoot.parallaxResumeProgress >= 1
+                    enabled: Appearance.animationsEnabled && (wallpaperContainer.useParallax || bgRoot.effectiveHasPan) && !bgRoot.parallaxTransitionActive && bgRoot.parallaxResumeProgress >= 1
                     animation: NumberAnimation { duration: Appearance.animation.elementMove.duration; easing.type: Appearance.animation.elementMove.type; easing.bezierCurve: Appearance.animation.elementMove.bezierCurve }
                 }
                 width: targetWidth
@@ -500,7 +561,7 @@ Variants {
                     return [x1, y1, x2, y2, 1, 1]
                 }
                 Behavior on width {
-                    enabled: Appearance.animationsEnabled && wallpaperContainer.useParallax && bgRoot._awwwRevealOpacity >= 1 && !bgRoot.parallaxTransitionActive && bgRoot.parallaxResumeProgress >= 1
+                    enabled: Appearance.animationsEnabled && (wallpaperContainer.useParallax || bgRoot.effectiveHasPan) && bgRoot._awwwRevealOpacity >= 1 && !bgRoot.parallaxTransitionActive && bgRoot.parallaxResumeProgress >= 1
                     NumberAnimation {
                         duration: wallpaperContainer._transitionDur
                         easing.type: Easing.BezierSpline
@@ -508,7 +569,7 @@ Variants {
                     }
                 }
                 Behavior on height {
-                    enabled: Appearance.animationsEnabled && wallpaperContainer.useParallax && bgRoot._awwwRevealOpacity >= 1 && !bgRoot.parallaxTransitionActive && bgRoot.parallaxResumeProgress >= 1
+                    enabled: Appearance.animationsEnabled && (wallpaperContainer.useParallax || bgRoot.effectiveHasPan) && bgRoot._awwwRevealOpacity >= 1 && !bgRoot.parallaxTransitionActive && bgRoot.parallaxResumeProgress >= 1
                     NumberAnimation {
                         duration: wallpaperContainer._transitionDur
                         easing.type: Easing.BezierSpline
