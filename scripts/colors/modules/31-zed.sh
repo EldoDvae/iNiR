@@ -15,6 +15,7 @@ ZED_OUTPUT_FILE="$HOME/.config/zed/themes/ii-theme.json"
 ZED_TEMPLATE_FILE="$REPO_ROOT/dots/.config/matugen/templates/zed-colors.json"
 ZED_THEMEGEN_LOG="$STATE_DIR/user/generated/code_editor_themes.log"
 ZED_LOCK_FILE="$STATE_DIR/user/generated/.zed-themegen.lock"
+ZED_INPUT_SIG_FILE="$STATE_DIR/user/generated/.zed-themegen-input.sig"
 
 resolve_go_bin() {
   if command -v go &>/dev/null; then
@@ -94,6 +95,19 @@ run_zed_themegen() {
   "$go_bin" run "$ZED_THEMEGEN_SRC" "${args[@]}" >> "$ZED_THEMEGEN_LOG" 2>&1
 }
 
+build_input_signature() {
+  local colors_file="$1"
+  {
+    for file in "$SCSS_FILE" "$colors_file" "$TERMINAL_FILE" "$ZED_TEMPLATE_FILE" "$ZED_THEMEGEN_SRC"; do
+      if [[ -f "$file" ]]; then
+        cksum "$file"
+      else
+        printf 'missing:%s\n' "$file"
+      fi
+    done
+  } | cksum | awk '{print $1 ":" $2}'
+}
+
 apply_zed_theme() {
   [[ -f "$SCSS_FILE" ]] || return 0
 
@@ -106,10 +120,18 @@ apply_zed_theme() {
   local colors_file="$PALETTE_FILE"
   [[ -f "$colors_file" ]] || colors_file="$LEGACY_COLORS_FILE"
 
+  local input_sig
+  input_sig="$(build_input_signature "$colors_file")"
+  if [[ -f "$ZED_OUTPUT_FILE" && -f "$ZED_INPUT_SIG_FILE" ]] && [[ "$(cat "$ZED_INPUT_SIG_FILE" 2>/dev/null || true)" == "$input_sig" ]]; then
+    return 0
+  fi
+
   if ! with_zed_lock run_zed_themegen "$colors_file"; then
     log_module "zed theme generation failed; see $ZED_THEMEGEN_LOG"
     return 0
   fi
+
+  printf '%s\n' "$input_sig" > "$ZED_INPUT_SIG_FILE" 2>/dev/null || true
 }
 
 main() {
