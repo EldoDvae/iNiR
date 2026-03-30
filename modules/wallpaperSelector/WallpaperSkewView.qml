@@ -242,6 +242,7 @@ Item {
     readonly property bool hasImages: imageCount > 0
     readonly property int folderCount: _folderItems.length
     readonly property bool hasFolders: folderCount > 0
+    readonly property string normalizedCurrentWallpaperPath: FileUtils.trimFileProtocol(String(currentWallpaperPath ?? ""))
 
     // ─── Active item (image-only index space) ───
     property int currentImageIndex: 0
@@ -275,11 +276,24 @@ Item {
         return "file://" + activePath
     }
 
-    property bool showKeyboardGuide: true
+    property bool showKeyboardGuide: false
     property bool animatePreview: false
     property bool _snapDone: false
     property real _focusPulse: 0
     property int _wheelAccum: 0
+    property int _hoverPreviewIndex: -1
+    readonly property string activeDisplayName: activePath.length > 0 ? FileUtils.fileNameForPath(activePath) : ""
+    readonly property string activeStatusText: {
+        if (!hasImages)
+            return Translation.tr("No wallpapers in this folder")
+        if (FileUtils.trimFileProtocol(String(currentWallpaperPath ?? "")) === FileUtils.trimFileProtocol(activePath))
+            return Translation.tr("Current wallpaper")
+        if (activeName.toLowerCase().endsWith(".gif"))
+            return Translation.tr("Animated image")
+        if (_mediaKind(activeName) === "video")
+            return Translation.tr("Video wallpaper")
+        return Translation.tr("Ready to apply")
+    }
 
     // ─── Rapid-navigation velocity tracking ───
     // When the user presses arrow keys (or wheel) quickly in succession,
@@ -306,17 +320,22 @@ Item {
 
     // ─── Skew / layout parameters (matching skwd geometry) ───
     readonly property real thumbnailDecodeScale: 1.2
-    readonly property int baseSliceWidth: 135
-    readonly property int baseExpandedCardWidth: 924
-    readonly property int baseCardHeight: 520
+    readonly property int baseSliceWidth: 128
+    readonly property int baseExpandedCardWidth: 860
+    readonly property int baseCardHeight: 496
     readonly property int baseSkewExtent: 35
     readonly property int baseSliceSpacing: -22
-    readonly property int visibleSliceCount: 12
+    readonly property int visibleSliceCount: 10
     // Top chrome inset references filterBar
     readonly property real topChromeLead: isTopBar ? 10 : isVerticalBar ? 12 : 14
     readonly property real topChromeGap: 8
     readonly property real topChromeInset: topChromeLead + filterBar.height + topChromeGap
-    readonly property real bottomChromeInset: toolbarArea.height + (hintBar.visible ? hintBar.height + 26 : 24) + 18
+    readonly property real filmstripHeight: root.animatePreview
+        ? Math.max(72, Math.min(root.height * 0.09, 92))
+        : Math.max(84, Math.min(root.height * 0.11, 108))
+    readonly property real bottomChromeInset: toolbarArea.height
+        + (filmstripPanel.visible ? filmstripPanel.height + 16 : 28)
+        + 20
     readonly property real availableStageHeight: Math.max(220, root.height - topChromeInset - bottomChromeInset)
     readonly property real skewScale: Math.max(
         0.58,
@@ -342,6 +361,10 @@ Item {
         if (s === "normal" || s === "large") s = "x-large"
         return s
     }
+    readonly property string _filmstripThumbnailSizeName: Images.thumbnailSizeNameForDimensions(
+        Math.round((root.animatePreview ? 108 : 132) * root._dpr * 1.15),
+        Math.round(root.filmstripHeight * root._dpr * 1.15)
+    )
 
     // ═══════════════════════════════════════════════════
     // STYLE TOKENS
@@ -512,6 +535,12 @@ Item {
         _goToImageIndex(currentImageIndex + delta)
     }
 
+    function toggleAnimatedPreview(): void {
+        if (!hasImages) return
+        showKeyboardGuide = false
+        animatePreview = !animatePreview
+    }
+
     function activateCurrent(): void {
         if (!hasImages) return
         const path = _imgFilePath(currentImageIndex)
@@ -666,22 +695,46 @@ Item {
                 root.closeRequested()
             }
             break
+        case Qt.Key_Space:
+            root.toggleAnimatedPreview(); break
         case Qt.Key_Left:
             if (alt || ctrl) Wallpapers.navigateBack()
             else root.moveSelection(-(shift ? 3 : 1))
             break
+        case Qt.Key_H:
+            if (!alt && !ctrl) {
+                root.moveSelection(-(shift ? 3 : 1))
+                break
+            }
+            event.accepted = false; return
         case Qt.Key_Right:
             if (alt || ctrl) Wallpapers.navigateForward()
             else root.moveSelection(shift ? 3 : 1)
             break
+        case Qt.Key_L:
+            if (!alt && !ctrl) {
+                root.moveSelection(shift ? 3 : 1)
+                break
+            }
+            event.accepted = false; return
         case Qt.Key_Up:
-            root.navigateUpDirectory(); break
-        case Qt.Key_Down:
-            if (root.folderCount === 1)
-                root.navigateIntoFolder(root._folderItems[0].path)
-            else if (root.folderCount > 1)
-                folderPanel.expanded = !folderPanel.expanded
+            if (alt || ctrl) root.navigateUpDirectory()
+            else root.moveSelection(-(shift ? 8 : 4))
             break
+        case Qt.Key_K:
+            root.moveSelection(-(shift ? 8 : 4)); break
+        case Qt.Key_Down:
+            if (alt || ctrl) {
+                if (root.folderCount === 1)
+                    root.navigateIntoFolder(root._folderItems[0].path)
+                else if (root.folderCount > 1)
+                    folderPanel.expanded = !folderPanel.expanded
+            } else {
+                root.moveSelection(shift ? 8 : 4)
+            }
+            break
+        case Qt.Key_J:
+            root.moveSelection(shift ? 8 : 4); break
         case Qt.Key_PageUp:
             root.moveSelection(-6); break
         case Qt.Key_PageDown:
@@ -724,6 +777,56 @@ Item {
     // ═══════════════════════════════════════════════════
     // MAIN SKEW LISTVIEW — asymmetric widths (skwd style)
     // ═══════════════════════════════════════════════════
+    Item {
+        anchors.fill: parent
+        visible: root.hasImages
+        z: -1
+
+        Image {
+            id: ambientBackdropSource
+            anchors.fill: parent
+            fillMode: Image.PreserveAspectCrop
+            source: root.activeQuantizerSource
+            visible: false
+            asynchronous: true
+            cache: true
+            smooth: true
+            sourceSize.width: Math.round(root.width * root._dpr)
+            sourceSize.height: Math.round(root.height * root._dpr)
+        }
+
+        MultiEffect {
+            anchors.fill: parent
+            source: ambientBackdropSource
+            visible: ambientBackdropSource.status === Image.Ready && root.activeQuantizerSource.length > 0
+            blurEnabled: true
+            blur: 1.0
+            blurMax: 96
+            saturation: 0.45
+            brightness: -0.05
+            opacity: root.animatePreview ? 0.22 : 0.16
+        }
+
+        GE.RadialGradient {
+            anchors.fill: parent
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: ColorUtils.applyAlpha(root._accent, root.animatePreview ? 0.22 : 0.16) }
+                GradientStop { position: 0.38; color: ColorUtils.applyAlpha(root._accent, 0.08) }
+                GradientStop { position: 1.0; color: "transparent" }
+            }
+            opacity: 0.95
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: ColorUtils.applyAlpha(Appearance.colors.colScrim, 0.10) }
+                GradientStop { position: 0.45; color: "transparent" }
+                GradientStop { position: 1.0; color: ColorUtils.applyAlpha(Appearance.colors.colScrim, 0.42) }
+            }
+        }
+    }
+
     ListView {
         id: skewView
         anchors {
@@ -747,7 +850,7 @@ Item {
         preferredHighlightBegin: (width - root.expandedCardWidth) / 2
         preferredHighlightEnd: (width + root.expandedCardWidth) / 2
         highlightMoveDuration: root._snapDone
-            ? Appearance.calcEffectiveDuration(root._rapidNavigation ? 180 : 320)
+            ? Appearance.calcEffectiveDuration(root._rapidNavigation ? 150 : 240)
             : 0
         highlightFollowsCurrentItem: true
         header: Item { width: (skewView.width - root.expandedCardWidth) / 2; height: 1 }
@@ -776,14 +879,34 @@ Item {
             height: root.cardHeight
             anchors.verticalCenter: parent ? parent.verticalCenter : undefined
             z: isCurrent ? 10 : 1
+            y: isCurrent ? -8 : 0
+            scale: isCurrent ? 1.018 : 1.0
 
             // Smooth width transition — faster during flick to avoid fighting momentum
             Behavior on width {
                 enabled: Appearance.animationsEnabled
                 NumberAnimation {
                     duration: skewView.moving
-                        ? Appearance.calcEffectiveDuration(120)
-                        : Appearance.animation.elementMoveEnter.duration
+                        ? Appearance.calcEffectiveDuration(90)
+                        : Appearance.calcEffectiveDuration(root._rapidNavigation ? 120 : 180)
+                    easing.type: Appearance.animation.elementMoveEnter.type
+                    easing.bezierCurve: Appearance.animation.elementMoveEnter.bezierCurve
+                }
+            }
+
+            Behavior on y {
+                enabled: Appearance.animationsEnabled
+                NumberAnimation {
+                    duration: Appearance.animation.elementMoveEnter.duration
+                    easing.type: Appearance.animation.elementMoveEnter.type
+                    easing.bezierCurve: Appearance.animation.elementMoveEnter.bezierCurve
+                }
+            }
+
+            Behavior on scale {
+                enabled: Appearance.animationsEnabled
+                NumberAnimation {
+                    duration: Appearance.animation.elementMoveEnter.duration
                     easing.type: Appearance.animation.elementMoveEnter.type
                     easing.bezierCurve: Appearance.animation.elementMoveEnter.bezierCurve
                 }
@@ -1081,6 +1204,227 @@ Item {
         }
     }
 
+    GlassBackground {
+        id: filmstripPanel
+        anchors {
+            bottom: toolbarArea.top
+            bottomMargin: 14
+            horizontalCenter: parent.horizontalCenter
+        }
+        width: Math.min(root.width - 92, Math.max(460, root.expandedCardWidth * 0.62))
+        height: root.filmstripHeight
+        visible: root.hasImages
+        opacity: visible ? 1.0 : 0.0
+        radius: Appearance.angelEverywhere ? Appearance.angel.roundingNormal
+            : Appearance.inirEverywhere ? Appearance.inir.roundingNormal
+            : Appearance.rounding.normal
+        fallbackColor: ColorUtils.applyAlpha(root.surfaceColor, root.animatePreview ? 0.92 : 0.96)
+        inirColor: Appearance.inir.colLayer1
+        auroraTransparency: Appearance.aurora.popupTransparentize
+        border.width: 1
+        border.color: ColorUtils.applyAlpha(root._accent, 0.22)
+        screenX: {
+            const p = filmstripPanel.mapToGlobal(0, 0)
+            return p.x
+        }
+        screenY: {
+            const p = filmstripPanel.mapToGlobal(0, 0)
+            return p.y
+        }
+        z: 218
+
+        Behavior on opacity {
+            enabled: Appearance.animationsEnabled
+            NumberAnimation {
+                duration: Appearance.animation.elementMoveFast.duration
+                easing.type: Appearance.animation.elementMoveFast.type
+                easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve
+            }
+        }
+
+        ListView {
+            id: filmstripView
+            anchors.fill: parent
+            anchors.margins: Math.max(8, Math.round(filmstripPanel.height * 0.08))
+            orientation: Qt.Horizontal
+            spacing: root.animatePreview ? 6 : 8
+            clip: true
+            model: root.imageCount
+            cacheBuffer: 800
+            boundsBehavior: Flickable.StopAtBounds
+            currentIndex: root.currentImageIndex
+
+            readonly property real delegateWidth: root.animatePreview ? 92 : 108
+            highlightRangeMode: ListView.StrictlyEnforceRange
+            preferredHighlightBegin: (width / 2) - (delegateWidth / 2)
+            preferredHighlightEnd: (width / 2) + (delegateWidth / 2)
+            highlightMoveDuration: root._snapDone
+                ? Appearance.calcEffectiveDuration(root._rapidNavigation ? 120 : 180)
+                : 0
+            highlightFollowsCurrentItem: true
+
+            onCurrentIndexChanged: {
+                if (currentIndex !== root.currentImageIndex)
+                    root.currentImageIndex = currentIndex
+            }
+
+            delegate: Item {
+                id: stripDelegate
+                required property int index
+                readonly property string filePath: root._imgFilePath(index)
+                readonly property string fileName: root._imgFileName(index)
+                readonly property string mediaKind: root._mediaKind(fileName)
+                readonly property bool isCurrent: ListView.isCurrentItem
+                readonly property bool isActive: filePath.length > 0
+                    && FileUtils.trimFileProtocol(filePath) === root.normalizedCurrentWallpaperPath
+                readonly property int absDist: Math.abs(index - root.currentImageIndex)
+
+                width: filmstripView.delegateWidth
+                height: filmstripView.height
+                opacity: isCurrent ? 1.0 : absDist === 1 ? 0.82 : Math.max(0.42, 0.78 - (absDist - 1) * 0.08)
+                scale: isCurrent ? 1.0 : absDist <= 1 ? 0.97 : 0.93
+
+                Behavior on opacity {
+                    enabled: Appearance.animationsEnabled
+                    NumberAnimation { duration: Appearance.animation.elementMoveFast.duration }
+                }
+
+                Behavior on scale {
+                    enabled: Appearance.animationsEnabled
+                    NumberAnimation {
+                        duration: Appearance.animation.elementMoveFast.duration
+                        easing.type: Appearance.animation.elementMoveFast.type
+                        easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve
+                    }
+                }
+
+                Item {
+                    id: thumbCard
+                    width: parent.width
+                    height: parent.height
+                    anchors.centerIn: parent
+
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: root.cardRadius
+                        color: isCurrent
+                            ? ColorUtils.applyAlpha(root.baseColor, 0.78)
+                            : ColorUtils.applyAlpha(root.baseColor, 0.44)
+                        border.width: isCurrent ? 2 : isActive ? 1.25 : 1
+                        border.color: isCurrent
+                            ? root._accent
+                            : isActive
+                                ? ColorUtils.applyAlpha(root._accent, 0.62)
+                                : ColorUtils.applyAlpha(root.borderColor, 0.8)
+                    }
+
+                    Item {
+                        id: thumbClip
+                        anchors.fill: parent
+                        anchors.margins: 4
+                        layer.enabled: true
+                        layer.smooth: true
+                        layer.effect: GE.OpacityMask {
+                            maskSource: Rectangle {
+                                width: thumbClip.width
+                                height: thumbClip.height
+                                radius: root.cardRadius * 0.9
+                            }
+                        }
+
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: root.cardRadius * 0.9
+                            color: root.surfaceColor
+                        }
+
+                        ThumbnailImage {
+                            anchors.fill: parent
+                            visible: filePath.length > 0
+                            generateThumbnail: true
+                            sourcePath: filePath
+                            thumbnailSizeName: root._filmstripThumbnailSizeName
+                            cache: true
+                            fillMode: Image.PreserveAspectCrop
+                            clip: true
+                            asynchronous: true
+                            retainWhileLoading: true
+                            sourceSize.width: Math.round(thumbCard.width * root._dpr)
+                            sourceSize.height: Math.round(thumbCard.height * root._dpr)
+                        }
+
+                        Rectangle {
+                            anchors.fill: parent
+                            color: ColorUtils.applyAlpha(root.baseColor, isCurrent ? 0.03 : 0.12)
+                        }
+                    }
+
+                    Rectangle {
+                        visible: isCurrent
+                        anchors {
+                            left: parent.left
+                            right: parent.right
+                            bottom: parent.bottom
+                            leftMargin: 10
+                            rightMargin: 10
+                            bottomMargin: 6
+                        }
+                        height: 3
+                        radius: height / 2
+                        color: root._accent
+                    }
+
+                    Rectangle {
+                        visible: isActive && !isCurrent
+                        anchors {
+                            right: parent.right
+                            top: parent.top
+                            margins: 7
+                        }
+                        width: 9
+                        height: 9
+                        radius: 4.5
+                        color: root._accent
+                        border.width: 1
+                        border.color: ColorUtils.contrastColor(root._accent)
+                    }
+
+                    MaterialSymbol {
+                        visible: mediaKind === "video" || mediaKind === "gif"
+                        anchors {
+                            left: parent.left
+                            top: parent.top
+                            margins: 7
+                        }
+                        text: mediaKind === "video" ? "play_arrow" : "gif"
+                        iconSize: 15
+                        color: Appearance.colors.colOnLayer0
+                        layer.enabled: true
+                        layer.smooth: true
+                        layer.effect: GE.DropShadow {
+                            verticalOffset: 1
+                            horizontalOffset: 0
+                            radius: 4
+                            color: ColorUtils.applyAlpha(Appearance.colors.colScrim, 0.62)
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            root.showKeyboardGuide = false
+                            if (root.currentImageIndex === index)
+                                root.activateCurrent()
+                            else
+                                root._goToImageIndex(index)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // ═══════════════════════════════════════════════════
     // FOLDER NAVIGATION PANEL (right side, floating)
     // ═══════════════════════════════════════════════════
@@ -1371,51 +1715,6 @@ Item {
             anchors.centerIn: parent
             spacing: 0
 
-            // ─ Up directory button ─
-            Rectangle {
-                width: upBtn.implicitWidth + 14
-                height: filterBarRow.implicitHeight
-                color: upBtnHover.containsMouse
-                    ? root.filterBarHoverColor
-                    : "transparent"
-                radius: height / 2
-                Behavior on color { enabled: Appearance.animationsEnabled; ColorAnimation { duration: Appearance.animation.elementMoveFast.duration } }
-
-                Row {
-                    id: upBtn
-                    anchors.centerIn: parent
-                    spacing: 4
-                    MaterialSymbol {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "arrow_upward"
-                        iconSize: 13
-                        color: root.textColor
-                        opacity: 0.78
-                    }
-                    StyledText {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: Translation.tr("Up")
-                        font.pixelSize: Appearance.font.pixelSize.smaller
-                        color: root.textColor
-                        opacity: 0.78
-                    }
-                }
-                MouseArea {
-                    id: upBtnHover
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.navigateUpDirectory()
-                }
-            }
-
-            // ─ Divider ─
-            Rectangle {
-                width: 1; height: 16
-                anchors.verticalCenter: parent.verticalCenter
-                color: ColorUtils.applyAlpha(root.textColor, 0.20)
-            }
-
             // ─ Type filter chips ─
             Row {
                 anchors.verticalCenter: parent.verticalCenter
@@ -1604,37 +1903,6 @@ Item {
                     }
                 }
             }
-        }
-    }
-
-    // ─── Keyboard hint ───
-    Rectangle {
-        id: hintBar
-        anchors {
-            bottom: toolbarArea.top
-            bottomMargin: 12
-            horizontalCenter: parent.horizontalCenter
-        }
-        visible: root.showKeyboardGuide
-        opacity: visible ? 1.0 : 0.0
-        z: 220
-        radius: height / 2
-        color: ColorUtils.applyAlpha(root.baseColor, 0.88)
-        border.width: 1
-        border.color: ColorUtils.applyAlpha(root.borderColor, 0.45)
-        width: hintText.implicitWidth + 24
-        height: hintText.implicitHeight + 10
-        Behavior on opacity { enabled: Appearance.animationsEnabled; animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve } }
-
-        StyledText {
-            id: hintText
-            anchors.centerIn: parent
-            text: root.hasFolders
-                ? Translation.tr("← → Browse  ·  ↑ Parent  ·  ↓ Folders  ·  / Search")
-                : Translation.tr("← → Browse  ·  ↑ Parent  ·  / Search")
-            font.pixelSize: Appearance.font.pixelSize.smaller
-            color: root.textColor
-            opacity: 0.75
         }
     }
 
