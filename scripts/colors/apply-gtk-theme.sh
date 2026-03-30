@@ -566,6 +566,33 @@ separator.sidebar {
     background-color: transparent !important;
     min-width: 0;
 }
+
+/* Context menus and popovers */
+popover,
+popover.background {
+    background-color: ${SURFACE_CONTAINER} !important;
+    color: ${ON_SURFACE} !important;
+}
+
+menu,
+.context-menu,
+.popup {
+    background-color: ${SURFACE_CONTAINER} !important;
+    color: ${ON_SURFACE} !important;
+}
+
+menuitem {
+    color: ${ON_SURFACE} !important;
+}
+
+menuitem:hover,
+menuitem:selected {
+    background-color: alpha(${PRIMARY}, 0.12) !important;
+}
+
+menu separator {
+    background-color: alpha(${ON_SURFACE}, 0.12) !important;
+}
 EOF
 
 # Generate GTK4/libadwaita CSS (Nautilus, GNOME apps)
@@ -666,6 +693,46 @@ paned > separator {
 .navigation-sidebar {
     border-right: none !important;
 }
+
+/* Context menus and popovers */
+popover,
+popover > contents {
+    background-color: ${SURFACE_CONTAINER} !important;
+    color: ${ON_SURFACE} !important;
+}
+
+popover modelbutton:hover,
+popover row:hover {
+    background-color: alpha(${PRIMARY}, 0.08) !important;
+}
+
+popover modelbutton:selected,
+popover row:selected {
+    background-color: alpha(${PRIMARY}, 0.14) !important;
+}
+
+popover separator {
+    background-color: alpha(${ON_SURFACE}, 0.12) !important;
+}
+
+/* Menu styling (GtkPopoverMenu in GTK4) */
+popover.menu > contents,
+popover.menu box.inline-buttons {
+    background-color: ${SURFACE_CONTAINER} !important;
+    color: ${ON_SURFACE} !important;
+}
+
+popover.menu modelbutton {
+    color: ${ON_SURFACE} !important;
+}
+
+popover.menu modelbutton:hover {
+    background-color: alpha(${PRIMARY}, 0.08) !important;
+}
+
+popover.menu accelerator {
+    color: alpha(${ON_SURFACE}, 0.55) !important;
+}
 EOF
 
 # Configure qt6ct to use the Darkly color scheme (fixes Dolphin and other Qt apps being white)
@@ -683,6 +750,48 @@ custom_palette=true
 icon_theme=${CURRENT_ICON_THEME}
 style=${CURRENT_QT_STYLE}
 EOF
+
+# Configure qt5ct to use the Darkly color scheme (mirrors qt6ct setup above)
+QT5CT_CONF="$HOME/.config/qt5ct/qt5ct.conf"
+mkdir -p "$(dirname "$QT5CT_CONF")"
+CURRENT_QT5_ICON_THEME=$(grep '^icon_theme=' "$QT5CT_CONF" 2>/dev/null | cut -d= -f2)
+[[ -z "$CURRENT_QT5_ICON_THEME" ]] && CURRENT_QT5_ICON_THEME="$CURRENT_ICON_THEME"
+CURRENT_QT5_STYLE=$(grep '^style=' "$QT5CT_CONF" 2>/dev/null | cut -d= -f2)
+[[ -z "$CURRENT_QT5_STYLE" ]] && CURRENT_QT5_STYLE="Darkly"
+cat > "$QT5CT_CONF" << EOF
+[Appearance]
+color_scheme_path=${DARKLY_COLORS}
+custom_palette=true
+icon_theme=${CURRENT_QT5_ICON_THEME}
+style=${CURRENT_QT5_STYLE}
+EOF
+
+# Sync icon theme and cursor to GTK settings.ini files
+# These are static files that become stale when user changes icon theme at runtime
+sync_gtk_settings_ini() {
+    local settings_file="$1"
+    [[ ! -f "$settings_file" ]] && return
+
+    local current_icon
+    current_icon=$(gsettings get org.gnome.desktop.interface icon-theme 2>/dev/null | tr -d "'")
+    [[ -z "$current_icon" ]] && return
+
+    local current_cursor
+    current_cursor=$(gsettings get org.gnome.desktop.interface cursor-theme 2>/dev/null | tr -d "'")
+
+    # Update icon theme in place
+    if grep -q '^gtk-icon-theme-name=' "$settings_file"; then
+        sed -i "s/^gtk-icon-theme-name=.*/gtk-icon-theme-name=${current_icon}/" "$settings_file"
+    fi
+
+    # Update cursor theme in place (if present and we have a value)
+    if [[ -n "$current_cursor" ]] && grep -q '^gtk-cursor-theme-name=' "$settings_file"; then
+        sed -i "s/^gtk-cursor-theme-name=.*/gtk-cursor-theme-name=${current_cursor}/" "$settings_file"
+    fi
+}
+
+sync_gtk_settings_ini "$HOME/.config/gtk-3.0/settings.ini"
+sync_gtk_settings_ini "$HOME/.config/gtk-4.0/settings.ini"
 
 # Restart Nautilus so it picks up new GTK CSS
 nautilus -q 2>/dev/null &
