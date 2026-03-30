@@ -63,9 +63,11 @@ Singleton {
         
         root._log("[ThemeService] Config updated, now applying theme");
         if (themeId === "auto") {
-            root._log("[ThemeService] Auto theme, regenerating from wallpaper");
-            // Force regeneration of colors from wallpaper
-            Quickshell.execDetached([Directories.wallpaperSwitchScriptPath, "--noswitch"]);
+            root._log("[ThemeService] Auto theme, scheduling wallpaper regeneration");
+            // Delay switchwall.sh so Config.setNestedValue flushes to disk first
+            // (50ms FileView timer). Without this, switchwall.sh reads the OLD
+            // theme from config.json and may erroneously use the accent color.
+            setAutoRegenTimer.restart()
         } else {
             root._log("[ThemeService] Manual theme, calling ThemePresets.applyPreset");
             const paletteType = Config.options?.appearance?.palette?.type ?? "auto"
@@ -159,7 +161,10 @@ Singleton {
         if (isAutoTheme) {
             // Force full regeneration from wallpaper (includes terminals, GTK, etc)
             const themingPath = Wallpapers.currentThemingWallpaperPath()
+            const paletteType = Config.options?.appearance?.palette?.type ?? "auto"
             const command = [Directories.wallpaperSwitchScriptPath, "--noswitch"]
+            if (paletteType !== "auto")
+                command.push("--type", paletteType)
             if (themingPath && themingPath.length > 0)
                 command.push("--image", themingPath)
             Quickshell.execDetached(command);
@@ -180,11 +185,15 @@ Singleton {
     }
 
     function _tryLiveRegenerateFromConfig(): void {
-        if (!Config.ready || !isAutoTheme) return
+        if (!Config.ready) return
+        if (root.liveRegenSignature === root._lastLiveRegenSignature) return
+        // Always track the signature — even when not on auto theme.
+        // Otherwise switching manual→auto sees the stale auto signature
+        // and skips regeneration.
+        root._lastLiveRegenSignature = root.liveRegenSignature
+        if (!isAutoTheme) return
         // Skip if a direct Wallpapers.apply() already launched switchwall.sh
         if (Wallpapers._applyInProgress) return
-        if (root.liveRegenSignature === root._lastLiveRegenSignature) return
-        root._lastLiveRegenSignature = root.liveRegenSignature
         root.regenerateAutoTheme()
     }
 
@@ -217,6 +226,20 @@ Singleton {
         onTriggered: {
             if (root._regenPending)
                 root.regenerateAutoTheme()
+        }
+    }
+
+    Timer {
+        id: setAutoRegenTimer
+        interval: 100  // > Config FileView 50ms flush timer
+        repeat: false
+        running: false
+        onTriggered: {
+            const paletteType = Config.options?.appearance?.palette?.type ?? "auto"
+            const command = [Directories.wallpaperSwitchScriptPath, "--noswitch"]
+            if (paletteType !== "auto")
+                command.push("--type", paletteType)
+            Quickshell.execDetached(command)
         }
     }
 
