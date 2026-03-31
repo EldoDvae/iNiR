@@ -651,7 +651,7 @@ def cmd_get_layout():
     result = {
         "gaps": 25,
         "center_focused": "never",
-        "always_center_single_column": False,
+        "always_center_single_column": True,
         "empty_workspace_above_first": False,
         "default_column_display": "normal",
         "border": {
