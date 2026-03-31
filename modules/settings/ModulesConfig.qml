@@ -44,6 +44,27 @@ ContentPage {
         Config.setNestedValue("enabledPanels", panels)
     }
 
+    function isIiBarEnabled(): bool {
+        const panels = Config.options?.enabledPanels ?? []
+        return panels.includes("iiBar") || panels.includes("iiVerticalBar")
+    }
+
+    function setIiBarEnabled(enabled: bool) {
+        let panels = [...(Config.options?.enabledPanels ?? [])]
+
+        const hasBar = panels.includes("iiBar")
+        const hasVerticalBar = panels.includes("iiVerticalBar")
+
+        if (enabled) {
+            if (!hasBar) panels.push("iiBar")
+            if (!hasVerticalBar) panels.push("iiVerticalBar")
+        } else {
+            panels = panels.filter(panel => panel !== "iiBar" && panel !== "iiVerticalBar")
+        }
+
+        Config.setNestedValue("enabledPanels", panels)
+    }
+
     function resetToDefaults() {
         const family = Config.options?.panelFamily ?? "ii"
         Config.setNestedValue("enabledPanels", [...(defaultPanels[family] ?? [])])
@@ -403,17 +424,9 @@ ContentPage {
             SettingsSwitch {
                 buttonIcon: "toolbar"
                 text: Translation.tr("Bar")
-                checked: modulesPage.isPanelEnabled("iiBar")
-                onCheckedChanged: modulesPage.setPanelEnabled("iiBar", checked)
-                StyledToolTip { text: Translation.tr("Horizontal bar with clock, workspaces, system tray and utilities") }
-            }
-
-            SettingsSwitch {
-                buttonIcon: "view_column"
-                text: Translation.tr("Vertical Bar")
-                checked: modulesPage.isPanelEnabled("iiVerticalBar")
-                onCheckedChanged: modulesPage.setPanelEnabled("iiVerticalBar", checked)
-                StyledToolTip { text: Translation.tr("Vertical bar layout (alternative to horizontal bar)") }
+                checked: modulesPage.isIiBarEnabled()
+                onCheckedChanged: modulesPage.setIiBarEnabled(checked)
+                StyledToolTip { text: Translation.tr("Main bar module. Orientation (horizontal/vertical) is configured in Bar settings.") }
             }
 
             SettingsSwitch {
