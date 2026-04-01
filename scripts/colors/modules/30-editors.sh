@@ -101,7 +101,7 @@ return {
   {
     "bjarneo/aether.nvim",
     branch = "v3",
-    name = "Inir",
+    name = "inir-neovim",
     priority = 1000,
     opts = {
       colors = {
@@ -143,9 +143,13 @@ return {
     },
     config = function(_, opts)
       local theme_file = vim.fn.stdpath("config") .. "/lua/plugins/neovim.lua"
-      local theme_dir = vim.fn.fnamemodify(theme_file, ":h")
-      local theme_name = vim.fn.fnamemodify(theme_file, ":t")
+      local generated_dir = vim.fn.expand("~/.local/state/quickshell/user/generated")
       local uv = vim.uv or vim.loop
+      local watched_files = {
+        [generated_dir .. "/palette.json"] = true,
+        [generated_dir .. "/terminal.json"] = true,
+        [generated_dir .. "/colors.json"] = true,
+      }
 
       local function apply_inir_theme(next_opts)
         require("aether").setup(next_opts)
@@ -173,29 +177,40 @@ return {
         return
       end
 
-      local fs_event = uv.new_fs_event()
-      if not fs_event then
-        return
-      end
-
       local reload_pending = false
-      fs_event:start(theme_dir, {}, function(err, fname)
-        if err or reload_pending then
-          return
-        end
-        if fname and fname ~= theme_name then
+      local watchers = {}
+
+      local function schedule_reload()
+        if reload_pending then
           return
         end
 
         reload_pending = true
-        vim.schedule(function()
+        vim.defer_fn(function()
           reload_pending = false
           reload_inir_theme()
-        end)
-      end)
+        end, 120)
+      end
+
+      for path in pairs(watched_files) do
+        local fs_event = uv.new_fs_event()
+        if fs_event then
+          fs_event:start(path, {}, function(err)
+            if err then
+              return
+            end
+            schedule_reload()
+          end)
+          watchers[#watchers + 1] = fs_event
+        end
+      end
+
+      if #watchers == 0 then
+        return
+      end
 
       vim.g.inir_aether_watch_started = 1
-      vim.__inir_aether_fs_event = fs_event
+      vim.__inir_aether_fs_events = watchers
     end,
   },
   {
