@@ -11,6 +11,7 @@ Singleton {
     id: root
 
     property bool available: false
+    property bool enabled: Config.options?.sidebar?.ytmusic?.enable ?? false
     property bool searching: false
     property bool loading: false
     property bool libraryLoading: false
@@ -127,18 +128,39 @@ Singleton {
             Component.onCompleted: {
                 if (root._isOurMpv(modelData)) {
                     root._mpvPlayer = modelData
+                    root._syncFromMpvPlayer(modelData)
                 }
             }
             
             function onIsPlayingChanged() {
                 if (root._isOurMpv(modelData)) {
                     root._mpvPlayer = modelData
+                    root._syncFromMpvPlayer(modelData)
                 }
             }
             
             function onPostTrackChanged() {
                 if (root._isOurMpv(modelData)) {
                     root._mpvPlayer = modelData
+                    root._syncFromMpvPlayer(modelData)
+                }
+            }
+
+            function onTrackTitleChanged() {
+                if (root._isOurMpv(modelData)) {
+                    root._syncFromMpvPlayer(modelData)
+                }
+            }
+
+            function onTrackArtistChanged() {
+                if (root._isOurMpv(modelData)) {
+                    root._syncFromMpvPlayer(modelData)
+                }
+            }
+
+            function onTrackArtUrlChanged() {
+                if (root._isOurMpv(modelData)) {
+                    root._syncFromMpvPlayer(modelData)
                 }
             }
             
@@ -155,10 +177,49 @@ Singleton {
         for (const player of Mpris.players.values) {
             if (root._isOurMpv(player)) {
                 root._mpvPlayer = player
+                root._syncFromMpvPlayer(player)
                 return
             }
         }
         root._mpvPlayer = null
+    }
+
+    function _extractVideoId(url): string {
+        const u = (url ?? "").toString()
+        if (!u) return ""
+        let m = u.match(/[?&]v=([A-Za-z0-9_-]{11})/)
+        if (m && m[1]) return m[1]
+        m = u.match(/youtu\.be\/([A-Za-z0-9_-]{11})/)
+        if (m && m[1]) return m[1]
+        m = u.match(/youtube\.com\/shorts\/([A-Za-z0-9_-]{11})/)
+        if (m && m[1]) return m[1]
+        return ""
+    }
+
+    function _syncFromMpvPlayer(player): void {
+        if (!player) return
+
+        const title = player.trackTitle ?? ""
+        const artist = player.trackArtist ?? ""
+        const url = player.metadata?.["xesam:url"] ?? ""
+        const art = player.trackArtUrl ?? ""
+        const pos = player.position ?? 0
+        const len = player.length ?? 0
+
+        if (title) root.currentTitle = title
+        if (artist) root.currentArtist = artist
+        if (url) root.currentUrl = url
+
+        const vid = root._extractVideoId(url)
+        if (vid) {
+            root.currentVideoId = vid
+            root.currentThumbnail = root._getThumbnailUrl(vid)
+        } else if (art && !root.currentThumbnail) {
+            root.currentThumbnail = art
+        }
+
+        if (len > 0) root.currentDuration = len
+        if (pos >= 0) root.currentPosition = pos
     }
     
     Component.onCompleted: {
@@ -214,6 +275,12 @@ Singleton {
     
     property bool _ipcPaused: false
     property bool isPlaying: _mpvPlayer?.isPlaying ?? !_ipcPaused
+
+    onEnabledChanged: {
+        if (!enabled) {
+            root.stop()
+        }
+    }
 
     function search(query): void {
         if (!query.trim() || !root.available) return
@@ -322,6 +389,10 @@ Singleton {
         root.currentVideoId = ""
         root.currentTitle = ""
         root.currentArtist = ""
+        root.currentThumbnail = ""
+        root.currentUrl = ""
+        root.currentDuration = 0
+        root.currentPosition = 0
         root.activePlaylist = []
         root.currentIndex = -1
     }

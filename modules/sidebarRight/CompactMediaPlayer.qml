@@ -457,8 +457,8 @@ Item {
             iconName: "",
             checkable: true,
             checked: MprisController.activePlayer === player,
-            onTriggered: () => {
-                if (player) MprisController.activePlayer = player
+            action: () => {
+                if (player) MprisController.setActivePlayer(player)
             }
         }))
     }
