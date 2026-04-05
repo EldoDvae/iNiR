@@ -249,7 +249,8 @@ Singleton {
 
             // Covers keep-open style endings where mpv doesn't exit,
             // so onExited never fires but eof-reached becomes true.
-            if (root._ipcEofReached && !root._autoAdvanceTriggered && root.currentVideoId !== "") {
+            // Also guard against stale EOF from old mpv when user initiated a new play.
+            if (root._ipcEofReached && !root._autoAdvanceTriggered && !root._userInitiatedPlay && root.currentVideoId !== "") {
                 root._autoAdvanceTriggered = true
                 root.playNext()
             }
@@ -298,6 +299,9 @@ Singleton {
     property bool _ipcPaused: false
     property bool _ipcEofReached: false
     property bool _autoAdvanceTriggered: false
+    // Guard flag: true while a user-initiated play is pending (between _playInternal and new mpv start).
+    // Suppresses spurious playNext() from old mpv's onExited or stale IPC EOF queries.
+    property bool _userInitiatedPlay: false
     property bool isPlaying: _mpvPlayer?.isPlaying ?? !_ipcPaused
 
     onEnabledChanged: {
@@ -328,7 +332,9 @@ Singleton {
         if (!item?.videoId || !root.available) return
         root.error = ""
         root.loading = true
-        root._autoAdvanceTriggered = false
+        // Mark that a user-initiated play is in progress. This prevents old mpv's
+        // onExited or stale IPC EOF from triggering playNext() before the new mpv starts.
+        root._userInitiatedPlay = true
         root._ipcEofReached = false
         
         _fadeOutOtherPlayers()
@@ -408,9 +414,11 @@ Singleton {
     function stop(): void {
         _playProc.running = false
         _stopProc.running = true
+        _playDelayTimer.stop()
         root.loading = false
         root._autoAdvanceTriggered = false
         root._ipcEofReached = false
+        root._userInitiatedPlay = false
         root.currentVideoId = ""
         root.currentTitle = ""
         root.currentArtist = ""
@@ -424,6 +432,8 @@ Singleton {
 
     function _didTrackEndNaturally(code: int, stderrText: string): bool {
         if (!root.currentVideoId) return false
+        // Signal-killed exits are never natural — we killed mpv to switch tracks.
+        if (code === 9 || code === 15 || code === 137 || code === 143) return false
         if (code === 0) return true
         // mpv can exit with code 4 for EOF-style finishes in some streams/builds.
         if (code === 4) return true
@@ -1430,6 +1440,12 @@ print("")
         id: _playDelayTimer
         interval: 200
         onTriggered: {
+            // New mpv is about to start — clear the guards now.
+            // _autoAdvanceTriggered is reset here (not in _playInternal) so that any
+            // stale onExited from the old mpv that fires between user-click and now
+            // cannot trigger a spurious playNext().
+            root._autoAdvanceTriggered = false
+            root._userInitiatedPlay = false
             // Refresh static cookie file for mpv before playing
             if (root.googleConnected) {
                 _refreshCookiesForMpvProc.running = true
@@ -1669,9 +1685,12 @@ print("")
             }
         }
         onExited: (code) => {
-            root._log("[YtMusic] mpv exited. Code:", code, "stderr:", _stderr.substring(0, 500))
+            root._log("[YtMusic] mpv exited. Code:", code, "userInitiated:", root._userInitiatedPlay, "stderr:", _stderr.substring(0, 500))
             root.loading = false
             root._mpvPlayer = null
+            // Skip auto-advance if a user-initiated play is pending — the old mpv was killed
+            // to make room for the new one, this exit is NOT a natural track end.
+            if (root._userInitiatedPlay) return
             if (root._didTrackEndNaturally(code, _stderr) && !root._autoAdvanceTriggered) {
                 // Track ended naturally, advance according to playlist/queue/repeat state
                 root._autoAdvanceTriggered = true
