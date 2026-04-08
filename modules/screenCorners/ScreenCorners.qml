@@ -34,7 +34,7 @@ Scope {
         readonly property bool cornerOpenMatchesPosition: cornerOpenAtBottom === cornerWidget.isBottom
         readonly property bool shouldShowCornerOpen: cornerOpenEnabled && cornerOpenMatchesPosition && !fullscreen && !GameMode.shouldHidePanels
 
-        visible: showFakeRounding || shouldShowCornerOpen
+        visible: !GameMode.shouldHidePanels && (showFakeRounding || shouldShowCornerOpen)
 
         exclusionMode: ExclusionMode.Ignore
         mask: Region {

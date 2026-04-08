@@ -67,7 +67,7 @@ Scope {
             sourceComponent: PanelWindow {
                 id: dockRoot
                 screen: panelLoader.modelData
-                visible: !GlobalStates.screenLocked
+                visible: !GlobalStates.screenLocked && !GameMode.shouldHidePanels
 
                 property bool reveal: !GlobalStates.coverflowSelectorOpen && GlobalStates.shellEntryReady && (root.pinned || (Config.options?.dock?.hoverToReveal && dockMouseArea.containsMouse) || (dockApps?.requestDockShow || dockAppsVertical?.requestDockShow) || (Config.options?.dock?.showOnDesktop !== false && !ToplevelManager.activeToplevel?.activated))
 

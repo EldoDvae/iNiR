@@ -41,6 +41,7 @@ Scope {
             component: PanelWindow { // Bar window
                 id: barRoot
                 screen: barLoader.modelData
+                visible: !GameMode.shouldHidePanels
 
                 property var brightnessMonitor: Brightness.getMonitorForScreen(barLoader.modelData)
                 

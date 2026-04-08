@@ -40,6 +40,7 @@ Scope {
             component: PanelWindow { // Bar window
                 id: barRoot
                 screen: barLoader.modelData
+                visible: !GameMode.shouldHidePanels
 
                 property var brightnessMonitor: Brightness.getMonitorForScreen(barLoader.modelData)
                 property real useShortenedForm: (Appearance.sizes.barHellaShortenScreenWidthThreshold >= screen.width) ? 2 : (Appearance.sizes.barShortenScreenWidthThreshold >= screen.width) ? 1 : 0
