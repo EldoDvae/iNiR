@@ -11,16 +11,17 @@ migration_check() {
   local startup_cfg="${xdg_config_home}/niri/config.d/50-startup.kdl"
   local monolithic_cfg="${xdg_config_home}/niri/config.kdl"
   local service_file="${xdg_config_home}/systemd/user/inir.service"
+  local startup_pattern='spawn-at-startup.*(inir([^[:alnum:]_-]|$)|\.local/bin/inir|config/quickshell/inir/scripts/inir)'
 
   if [[ ! -f "$service_file" ]]; then
     return 0
   fi
 
-  if [[ -f "$startup_cfg" ]] && grep -q 'spawn-at-startup ".*inir.*" "start"' "$startup_cfg" 2>/dev/null; then
+  if [[ -f "$startup_cfg" ]] && grep -Eq "$startup_pattern" "$startup_cfg" 2>/dev/null; then
     return 0
   fi
 
-  if [[ -f "$monolithic_cfg" ]] && grep -q 'spawn-at-startup ".*inir.*" "start"' "$monolithic_cfg" 2>/dev/null; then
+  if [[ -f "$monolithic_cfg" ]] && grep -Eq "$startup_pattern" "$monolithic_cfg" 2>/dev/null; then
     return 0
   fi
 
@@ -48,6 +49,24 @@ migration_apply() {
   local service_asset
   local tmp_file
 
+  _remove_inir_startup_lines() {
+    local file="$1"
+    [[ -f "$file" ]] || return 0
+
+    python3 - "$file" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+pattern = re.compile(r'.*spawn-at-startup.*(?:inir(?![A-Za-z0-9_-])|\.local/bin/inir|config/quickshell/inir/scripts/inir).*\n?', re.MULTILINE)
+new_text = pattern.sub('', text)
+if new_text != text:
+    path.write_text(new_text)
+PY
+  }
+
   if [[ ! -f "$service_file" ]]; then
     service_asset="${REPO_ROOT}/assets/systemd/inir.service"
     if [[ -f "$service_asset" ]]; then
@@ -61,15 +80,19 @@ migration_apply() {
   fi
 
   if [[ -f "$startup_cfg" ]]; then
-    sed -i '/spawn-at-startup ".*inir.*" "start"/d' "$startup_cfg"
+    _remove_inir_startup_lines "$startup_cfg"
   fi
 
   if [[ -f "$monolithic_cfg" ]]; then
-    sed -i '/spawn-at-startup ".*inir.*" "start"/d' "$monolithic_cfg"
+    _remove_inir_startup_lines "$monolithic_cfg"
   fi
 
   if command -v systemctl >/dev/null 2>&1 && [[ -f "$service_file" ]]; then
     systemctl --user daemon-reload >/dev/null 2>&1 || true
     systemctl --user enable inir.service >/dev/null 2>&1 || true
+    if [[ -n "${NIRI_SOCKET:-}" || -n "${WAYLAND_DISPLAY:-}" ]]; then
+      systemctl --user reset-failed inir.service >/dev/null 2>&1 || true
+      systemctl --user start inir.service >/dev/null 2>&1 || true
+    fi
   fi
 }
