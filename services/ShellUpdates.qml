@@ -194,7 +194,7 @@ Singleton {
         const repoDir = root.repoPath
         Quickshell.execDetached(["/usr/bin/bash", "-c",
             "echo 'updating' > '" + statusPath + "'; " +
-            "cd '" + repoDir + "' && ./setup update -y -q > '" + logPath + "' 2>&1; " +
+            "cd '" + repoDir + "' && ./setup -y -q update > '" + logPath + "' 2>&1; " +
             "rc=$?; " +
             "if [ $rc -ne 0 ]; then echo \"failed:$rc\" > '" + statusPath + "'; fi"
         ])

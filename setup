@@ -112,6 +112,14 @@ prevent_sudo_or_root
 ask=true
 quiet=false
 
+# Auto-detect non-interactive context (no terminal on stdin).
+# Forces non-interactive mode when launched from QML Process, cron, systemd, etc.
+# This is defense-in-depth alongside the -y flag.
+if ! [ -t 0 ]; then
+    ask=false
+    quiet=true
+fi
+
 # DISABLED: webapps — requires quickshell-webengine rebuild, re-enable when ready
 # _build_install_qs_webengine() {
 #     local build_script="${REPO_ROOT}/scripts/quickshell-webengine/build-quickshell-webengine.sh"
@@ -1544,9 +1552,10 @@ run_update() {
             # Re-exec to pick up updated library code from the pull.
             # Without this, functions sourced at startup (doctor, migrations, etc.)
             # would still be the OLD versions in memory.
-            local reexec_args=("update")
+            local reexec_args=()
             $ask || reexec_args+=("-y")
             $quiet && reexec_args+=("-q")
+            reexec_args+=("update")
             export _II_POST_PULL=1
             exec "$REPO_ROOT/setup" "${reexec_args[@]}"
         elif [[ "$update_rc" -eq 2 ]]; then
@@ -2054,6 +2063,8 @@ case "$COMMAND" in
     update)
         for _arg in "${SUBCMD_ARGS[@]}"; do
             case "$_arg" in
+                -y|--yes) ask=false ;;
+                -q|--quiet) quiet=true ;;
                 --local) export _II_POST_PULL=local ;;
             esac
         done
