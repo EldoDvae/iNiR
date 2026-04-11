@@ -327,12 +327,15 @@ Singleton {
             if (root._mpvPlayer) {
                 root.currentPosition = root._mpvPlayer.position
                 root._ipcPaused = !root._mpvPlayer.isPlaying
-            } else {
+            } else if (!root._userInitiatedPlay) {
                 _ipcQueryProc.running = true
                 _ipcPauseQueryProc.running = true
             }
 
-            _ipcEofQueryProc.running = true
+            // Don't query EOF while a new play is pending — the old socket
+            // would return stale eof-reached=true and cause double-advance.
+            if (!root._userInitiatedPlay)
+                _ipcEofQueryProc.running = true
 
             // Covers keep-open style endings where mpv doesn't exit,
             // so onExited never fires but eof-reached becomes true.
@@ -602,7 +605,9 @@ Singleton {
             Translation.tr("Up Next"),
             body,
             "-a", "YtMusic",
-            "-i", "audio-x-generic"
+            "-i", "audio-x-generic",
+            "-h", "int:transient:1",
+            "-t", "4000"
         ])
     }
 
@@ -1561,12 +1566,15 @@ print("")
         id: _playDelayTimer
         interval: 200
         onTriggered: {
-            // New mpv is about to start — clear the guards now.
-            // _autoAdvanceTriggered is reset here (not in _playInternal) so that any
-            // stale onExited from the old mpv that fires between user-click and now
-            // cannot trigger a spurious playNext().
+            // Reset auto-advance and EOF flags — the new play supersedes any pending advance.
             root._autoAdvanceTriggered = false
-            root._userInitiatedPlay = false
+            root._ipcEofReached = false
+            // KEEP _userInitiatedPlay = true here! When _playProc.running = true kills
+            // the old mpv, onExited fires synchronously. If _userInitiatedPlay were false,
+            // that onExited would pass the guard and trigger a spurious playNext().
+            // _userInitiatedPlay is cleared in _playProc.onRunningChanged when the new
+            // mpv actually starts.
+
             // Refresh static cookie file for mpv before playing
             if (root.googleConnected) {
                 _refreshCookiesForMpvProc.running = true
@@ -1802,6 +1810,9 @@ print("")
         onRunningChanged: {
             if (running) {
                 root.loading = false
+                // New mpv is confirmed running — safe to clear the guard now.
+                // Any onExited from here on is for THIS mpv instance.
+                root._userInitiatedPlay = false
                 Qt.callLater(root._findMpvPlayer)
             }
         }

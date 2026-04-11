@@ -29,11 +29,19 @@ resolve_go_bin() {
   return 1
 }
 
+needs_rebuild() {
+  [[ ! -x "$ZED_THEMEGEN_BIN" ]] && return 0
+  for src in "$ZED_THEMEGEN_SRC" "$REPO_ROOT/scripts/colors/themegencommon/common.go" "$REPO_ROOT/go.mod"; do
+    [[ -f "$src" && "$src" -nt "$ZED_THEMEGEN_BIN" ]] && return 0
+  done
+  return 1
+}
+
 ensure_zed_themegen() {
   local go_bin="$1"
   [[ -f "$ZED_THEMEGEN_SRC" ]] || return 1
   mkdir -p "$STATE_DIR/user/generated/bin"
-  if [[ -x "$ZED_THEMEGEN_BIN" && "$ZED_THEMEGEN_SRC" -ot "$ZED_THEMEGEN_BIN" ]]; then
+  if [[ -x "$ZED_THEMEGEN_BIN" ]] && ! needs_rebuild; then
     return 0
   fi
 
@@ -77,21 +85,23 @@ run_zed_themegen() {
     --template "$ZED_TEMPLATE_FILE"
   )
 
+  local go_bin
+  go_bin="$(resolve_go_bin || true)"
+
+  # Always try to rebuild if Go is available (handles source changes)
+  if [[ -n "$go_bin" ]]; then
+    ensure_zed_themegen "$go_bin" || true
+  fi
+
   if [[ -x "$ZED_THEMEGEN_BIN" ]]; then
     "$ZED_THEMEGEN_BIN" "${args[@]}" >> "$ZED_THEMEGEN_LOG" 2>&1 && return 0
   fi
 
-  local go_bin
-  go_bin="$(resolve_go_bin || true)"
   if [[ -z "$go_bin" ]]; then
     return 1
   fi
 
-  if ensure_zed_themegen "$go_bin"; then
-    "$ZED_THEMEGEN_BIN" "${args[@]}" >> "$ZED_THEMEGEN_LOG" 2>&1 && return 0
-  fi
-
-  # Build failed (e.g. output path issue). Run directly so theme updates still apply.
+  # Binary missing or failed — run directly so theme updates still apply.
   "$go_bin" run "$ZED_THEMEGEN_SRC" "${args[@]}" >> "$ZED_THEMEGEN_LOG" 2>&1
 }
 
