@@ -840,6 +840,9 @@
             "playlists": [],
             "liked": [],
             "lastLikedSync": "",
+            "upNextNotifications": true,
+            "suppressUpNextInFullscreen": true,
+            "volume": 100,
             "profile": {
                 "name": "",
                 "avatar": "",

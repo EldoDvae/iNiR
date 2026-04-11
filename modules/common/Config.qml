@@ -1144,6 +1144,9 @@ Singleton {
                     property list<var> playlists: []
                     property list<var> liked: []
                     property string lastLikedSync: ""
+                    property bool upNextNotifications: true
+                    property bool suppressUpNextInFullscreen: true
+                    property int volume: 100
                     property JsonObject profile: JsonObject {
                         property string name: ""
                         property string avatar: ""
