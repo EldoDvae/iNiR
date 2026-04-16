@@ -5,10 +5,13 @@ import qs.modules.common
 import qs
 import qs.services
 import QtQuick
+import Quickshell.Io
 
 /**
  * Simple wallpaper search service for wallhaven.cc
  * Reuses BooruResponseData so it can be rendered with existing Booru UI components.
+ * Uses curl for HTTP requests to properly set User-Agent header (XMLHttpRequest in Qt
+ * doesn't allow setting restricted headers like User-Agent).
  */
 QtObject {
     id: root
@@ -16,7 +19,6 @@ QtObject {
     property Component wallhavenResponseComponent: BooruResponseData {}
 
     signal responseFinished()
-
     signal tagSuggestion(string query, var suggestions)
 
     property string failMessage: Translation.tr("That didn't work. Tips:\n- Check your query and NSFW settings\n- Make sure your Wallhaven API key is set if you want NSFW")
@@ -27,15 +29,12 @@ QtObject {
     property var _lastTagSuggestions: ([])
 
     // Wallhaven rate limiting (HTTP 429) can trigger easily when paging quickly.
-    // Keep a simple cooldown to prevent request spam and make UI behavior predictable.
     property real nowMs: Date.now()
     property real rateLimitedUntilMs: 0
     readonly property bool isRateLimited: nowMs < rateLimitedUntilMs
 
     readonly property bool _active: (Config.options?.sidebar?.wallhaven?.enable ?? true) && (GlobalStates?.sidebarLeftOpen ?? false)
 
-    // Clock timer only runs when the service is active (sidebar open)
-    // This prevents unnecessary CPU cycles when Wallhaven is not visible
     property Timer wallhavenClock: Timer {
         interval: 500
         repeat: true
@@ -78,7 +77,6 @@ QtObject {
 
     // Tag fetch queue
     property var tagQueue: ([])
-
     property var wallpaperTagCache: ({})
     property var wallpaperTagRequests: ({})
 
@@ -86,7 +84,7 @@ QtObject {
     readonly property string apiBase: "https://wallhaven.cc/api/v1"
     readonly property string apiSearchEndpoint: apiBase + "/search"
 
-    property var defaultUserAgent: Config.options?.networking?.userAgent || "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+    property string defaultUserAgent: Config.options?.networking?.userAgent || "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
 
     property string tagSuggestionBase: "https://wallhaven.cc/tag/search"
     property int tagSuggestionCacheMs: 5 * 60 * 1000
@@ -95,9 +93,52 @@ QtObject {
 
     // Cache + queue for counts (meta.total) per tag id
     property int tagCountCacheMs: 10 * 60 * 1000
-    property var _tagCountCache: ({}) // id -> { ts, total }
-    property var _tagCountRequests: ({}) // id -> bool
+    property var _tagCountCache: ({})
+    property var _tagCountRequests: ({})
     property var _tagCountQueue: ([])
+
+    // Process for main search requests
+    property var _currentSearchUrl: ""
+    property var _currentSearchResponse: null
+
+    property Process searchProcess: Process {
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root._handleSearchResponse(text)
+            }
+        }
+    }
+
+    // Process for tag count requests
+    property string _tagCountCurrentId: ""
+    property Process tagCountProcess: Process {
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root._handleTagCountResponse(text)
+            }
+        }
+    }
+
+    // Process for tag suggestions
+    property string _tagSuggestionQuery: ""
+    property bool _tagSuggestionPreferQuoted: true
+    property Process tagSuggestionProcess: Process {
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root._handleTagSuggestionResponse(text)
+            }
+        }
+    }
+
+    // Process for wallpaper detail (tags)
+    property string _tagDetailCurrentId: ""
+    property Process tagDetailProcess: Process {
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root._handleTagDetailResponse(text)
+            }
+        }
+    }
 
     property Timer _tagCountTimer: Timer {
         interval: 350
@@ -130,12 +171,8 @@ QtObject {
         if (!html || html.length === 0)
             return results
 
-        // Match links to /tag/<id> and capture the visible name.
-        // Keep this regex intentionally permissive; Wallhaven HTML changes.
         const patterns = [
-            // Most robust: capture the entire anchor contents (can include nested spans/icons), then strip tags.
             new RegExp('href=["\'](?:https?:\\/\\/wallhaven\\.cc)?\\/tag\\/(\\d+)["\'][^>]*>([\\s\\S]*?)<\\/a>', 'g'),
-            // href=/tag/123 ... </a>
             new RegExp('href=(?:https?:\\/\\/wallhaven\\.cc)?\\/tag\\/(\\d+)[^>]*>([\\s\\S]*?)<\\/a>', 'g')
         ]
 
@@ -184,6 +221,8 @@ QtObject {
             return
         if (!root._tagCountQueue || root._tagCountQueue.length === 0)
             return
+        if (root.tagCountProcess.running)
+            return
 
         const id = root._tagCountQueue[0]
         root._tagCountQueue = root._tagCountQueue.slice(1)
@@ -194,64 +233,45 @@ QtObject {
 
         root._tagCountRequests[id] = true
         root._nextTagAllowedMs = root.nowMs + root.minTagIntervalMs
+        root._tagCountCurrentId = id
 
         const url = root.apiSearchEndpoint + "?q=" + encodeURIComponent("id:" + id) + "&page=1&per_page=1&categories=111&purity=100&sorting=date_added&order=desc" + ((apiKey && apiKey.length > 0) ? ("&apikey=" + encodeURIComponent(apiKey)) : "")
-        var xhr = new XMLHttpRequest()
-        xhr.open("GET", url)
-        try {
-            xhr.setRequestHeader("User-Agent", defaultUserAgent)
-        } catch (e) {
+        console.log("[Wallhaven] Fetching tag count for", id)
+        root.tagCountProcess.command = ["/usr/bin/curl", "-s", "--max-time", "15", "-H", "User-Agent: " + defaultUserAgent, url]
+        root.tagCountProcess.running = true
+    }
+
+    function _handleTagCountResponse(text): void {
+        const id = root._tagCountCurrentId
+        root._tagCountRequests[id] = false
+        root._tagCountCurrentId = ""
+
+        if (!text || text.length === 0) {
+            return
         }
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState !== XMLHttpRequest.DONE)
-                return
 
-            root._tagCountRequests[id] = false
+        try {
+            const payload = JSON.parse(text)
+            const meta = payload.meta || {}
+            const total = meta.total !== undefined ? parseInt(meta.total) : 0
+            root._tagCountCache[id] = { ts: root.nowMs, total: total }
 
-            if (xhr.status === 200) {
-                try {
-                    const payload = JSON.parse(xhr.responseText)
-                    const meta = payload.meta || {}
-                    const total = meta.total !== undefined ? parseInt(meta.total) : 0
-                    root._tagCountCache[id] = { ts: root.nowMs, total: total }
-
-                    // Re-emit last suggestions if they include this id
-                    if (root._lastTagSuggestions && root._lastTagSuggestions.length > 0) {
-                        let changed = false
-                        const updated = root._lastTagSuggestions.map(s => {
-                            if (s && s.id === id) {
-                                const next = {
-                                    id: s.id,
-                                    name: s.name,
-                                    count: total
-                                }
-                                changed = true
-                                return next
-                            }
-                            return s
-                        })
-                        if (changed) {
-                            root._lastTagSuggestions = updated
-                            root.tagSuggestion(root._lastTagSuggestionQuery, updated)
-                        }
+            if (root._lastTagSuggestions && root._lastTagSuggestions.length > 0) {
+                let changed = false
+                const updated = root._lastTagSuggestions.map(s => {
+                    if (s && s.id === id) {
+                        changed = true
+                        return { id: s.id, name: s.name, count: total }
                     }
-                } catch (e) {
-                    console.log("[Wallhaven] Failed to parse tag count response:", e)
-                }
-            } else if (xhr.status === 429) {
-                root.rateLimitedUntilMs = root.nowMs + 30000
-                // requeue
-                root._tagCountRequests[id] = false
-                if (root._tagCountQueue.indexOf(id) === -1) {
-                    root._tagCountQueue = [...root._tagCountQueue, id]
+                    return s
+                })
+                if (changed) {
+                    root._lastTagSuggestions = updated
+                    root.tagSuggestion(root._lastTagSuggestionQuery, updated)
                 }
             }
-        }
-        try {
-            xhr.send()
         } catch (e) {
-            console.log("[Wallhaven] Error sending tag count request:", e)
-            root._tagCountRequests[id] = false
+            console.log("[Wallhaven] Failed to parse tag count response:", e)
         }
     }
 
@@ -264,8 +284,8 @@ QtObject {
         if (preferQuoted === undefined)
             preferQuoted = true
 
-        if (currentTagRequest) {
-            currentTagRequest.abort()
+        if (root.tagSuggestionProcess.running) {
+            root.tagSuggestionProcess.running = false
         }
 
         const cached = root._tagSuggestionCache[q]
@@ -276,75 +296,56 @@ QtObject {
 
         const searchQ = preferQuoted ? ("\"" + q + "\"") : q
         const url = root.tagSuggestionBase + "?q=" + encodeURIComponent(searchQ)
-        var xhr = new XMLHttpRequest()
-        currentTagRequest = xhr
-        xhr.open("GET", url)
-        try {
-            xhr.setRequestHeader("User-Agent", defaultUserAgent)
-        } catch (e) {
-            // Ignore if platform disallows setting UA
+        
+        root._tagSuggestionQuery = q
+        root._tagSuggestionPreferQuoted = preferQuoted
+        
+        console.log("[Wallhaven] Fetching tag suggestions for", q)
+        root.tagSuggestionProcess.command = ["/usr/bin/curl", "-s", "--max-time", "15", "-H", "User-Agent: " + defaultUserAgent, url]
+        root.tagSuggestionProcess.running = true
+    }
+
+    function _handleTagSuggestionResponse(text): void {
+        const q = root._tagSuggestionQuery
+        const preferQuoted = root._tagSuggestionPreferQuoted
+
+        if (!text || text.length === 0) {
+            console.log("[Wallhaven] Tag suggestion request failed: empty response")
+            root.tagSuggestion(q, [])
+            return
         }
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState !== XMLHttpRequest.DONE)
-                return
 
-            if (currentTagRequest === xhr) {
-                currentTagRequest = null
-            }
-
-            if (xhr.status !== 200) {
-                console.log("[Wallhaven] Tag suggestion request failed:", xhr.status, url)
-                root.tagSuggestion(q, [])
+        try {
+            const results = root._parseTagSuggestionsFromHtml(text)
+            
+            if (results.length === 0 && preferQuoted) {
+                Qt.callLater(() => root.triggerTagSearch(q, false))
                 return
             }
 
-            try {
-                const html = xhr.responseText || ""
-                const results = root._parseTagSuggestionsFromHtml(html)
-                // Fallback: wallhaven tag search sometimes responds better without quotes.
-                if (results.length === 0 && preferQuoted) {
-                    Qt.callLater(() => root.triggerTagSearch(q, false))
-                    return
-                }
-
-                // Attach counts if cached and queue count fetches for missing
-                const enriched = results.map(s => {
-                    const id = s?.id ?? ""
-                    if (id.length === 0)
-                        return s
-                    const cachedCount = root._tagCountCache[id]
-                    if (cachedCount && (root.nowMs - (cachedCount.ts || 0) < root.tagCountCacheMs)) {
-                        return {
-                            id: s.id,
-                            name: s.name,
-                            count: cachedCount.total
-                        }
-                    }
-                    root._queueTagCount(id)
+            const enriched = results.map(s => {
+                const id = s?.id ?? ""
+                if (id.length === 0)
                     return s
-                })
+                const cachedCount = root._tagCountCache[id]
+                if (cachedCount && (root.nowMs - (cachedCount.ts || 0) < root.tagCountCacheMs)) {
+                    return { id: s.id, name: s.name, count: cachedCount.total }
+                }
+                root._queueTagCount(id)
+                return s
+            })
 
-                root._tagSuggestionCache[q] = { ts: root.nowMs, items: enriched }
-                root._lastTagSuggestionQuery = q
-                root._lastTagSuggestions = enriched
-                root.tagSuggestion(q, enriched)
-            } catch (e) {
-                console.log("[Wallhaven] Failed to parse tag suggestions:", e)
-                root.tagSuggestion(q, [])
-            }
-        }
-
-        try {
-            xhr.send()
+            root._tagSuggestionCache[q] = { ts: root.nowMs, items: enriched }
+            root._lastTagSuggestionQuery = q
+            root._lastTagSuggestions = enriched
+            root.tagSuggestion(q, enriched)
         } catch (e) {
-            console.log("[Wallhaven] Error sending tag suggestion request:", e)
-            currentTagRequest = null
+            console.log("[Wallhaven] Failed to parse tag suggestions:", e)
             root.tagSuggestion(q, [])
         }
     }
 
     function _applyTagsToResponses(id, tagsJoined) {
-        // Update any existing response images with this id
         for (let r = 0; r < responses.length; ++r) {
             const resp = responses[r]
             if (!resp || resp.provider !== "wallhaven" || !resp.images)
@@ -358,7 +359,6 @@ QtObject {
                 }
             }
             if (changed) {
-                // Re-assign to trigger bindings
                 resp.images = [...resp.images]
             }
         }
@@ -373,7 +373,6 @@ QtObject {
         if (wallpaperTagRequests[id])
             return
 
-        // Queue tag fetches to avoid request storms.
         if (tagQueue.indexOf(id) === -1) {
             tagQueue = [...tagQueue, id]
         }
@@ -387,8 +386,9 @@ QtObject {
             return
         if (!tagQueue || tagQueue.length === 0)
             return
+        if (root.tagDetailProcess.running)
+            return
 
-        // Pop front
         const id = tagQueue[0]
         tagQueue = tagQueue.slice(1)
 
@@ -401,52 +401,37 @@ QtObject {
 
         wallpaperTagRequests[id] = true
         root._nextTagAllowedMs = root.nowMs + root.minTagIntervalMs
+        root._tagDetailCurrentId = id
 
-        var url = _detailUrl(id)
-        var xhr = new XMLHttpRequest()
-        xhr.open("GET", url)
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState !== XMLHttpRequest.DONE)
-                return
+        const url = _detailUrl(id)
+        console.log("[Wallhaven] Fetching wallpaper tags for", id)
+        root.tagDetailProcess.command = ["/usr/bin/curl", "-s", "--max-time", "15", "-H", "User-Agent: " + defaultUserAgent, url]
+        root.tagDetailProcess.running = true
+    }
 
-            wallpaperTagRequests[id] = false
+    function _handleTagDetailResponse(text): void {
+        const id = root._tagDetailCurrentId
+        root._tagDetailCurrentId = ""
+        wallpaperTagRequests[id] = false
 
-            if (xhr.status === 200) {
-                try {
-                    var payload = JSON.parse(xhr.responseText)
-                    var data = payload.data || {}
-                    var tags = data.tags || []
-                    var joined = ""
-                    if (tags && tags.length > 0) {
-                        joined = tags.map(function(t) { return t.name; }).join(" ")
-                    }
-                    wallpaperTagCache[id] = joined
-                    _applyTagsToResponses(id, joined)
-                } catch (e) {
-                    console.log("[Wallhaven] Failed to parse detail response:", e)
-                    wallpaperTagCache[id] = ""
-                }
-            } else if (xhr.status === 429) {
-                // Backoff and retry later
-                root.rateLimitedUntilMs = root.nowMs + 30000
-                wallpaperTagCache[id] = undefined
-                if (tagQueue.indexOf(id) === -1) {
-                    tagQueue = [...tagQueue, id]
-                }
-            } else {
-                // Cache empty to avoid retry storms
-                wallpaperTagCache[id] = ""
-            }
+        if (!text || text.length === 0) {
+            wallpaperTagCache[id] = ""
+            return
         }
+
         try {
-            xhr.send()
-        } catch (e) {
-            console.log("[Wallhaven] Error sending detail request:", e)
-            wallpaperTagRequests[id] = false
-            // Retry later
-            if (tagQueue.indexOf(id) === -1) {
-                tagQueue = [...tagQueue, id]
+            var payload = JSON.parse(text)
+            var data = payload.data || {}
+            var tags = data.tags || []
+            var joined = ""
+            if (tags && tags.length > 0) {
+                joined = tags.map(function(t) { return t.name; }).join(" ")
             }
+            wallpaperTagCache[id] = joined
+            _applyTagsToResponses(id, joined)
+        } catch (e) {
+            console.log("[Wallhaven] Failed to parse detail response:", e)
+            wallpaperTagCache[id] = ""
         }
     }
 
@@ -460,11 +445,8 @@ QtObject {
     // Config-driven options
     property string apiKey: Config.options?.sidebar?.wallhaven?.apiKey ?? ""
     property int defaultLimit: Config.options?.sidebar?.wallhaven?.limit ?? 24
-    // Reuse global NSFW toggle used by Anime boorus for now
     property bool allowNsfw: Persistent.states?.booru?.allowNsfw ?? false
-    // Listing mode: "toplist", "date_added", "random", etc.
     property string sortingMode: "date_added"
-    // Toplist range when sortingMode == "toplist": 1d, 3d, 1w, 1M, 3M, 6M, 1y
     property string topRange: "1M"
 
     function clearResponses() {
@@ -497,17 +479,14 @@ QtObject {
         var effLimit = (limit && limit > 0) ? limit : defaultLimit
         params.push("per_page=" + effLimit)
 
-        // categories: general, anime, people -> 111 = all
         params.push("categories=111")
 
-        // purity: 100 = sfw, 110 = sfw+sketchy, 111 = sfw+sketchy+nsfw
-        var purity = "100" // default: SFW only
+        var purity = "100"
         if (nsfw && apiKey && apiKey.length > 0) {
             purity = "111"
         }
         params.push("purity=" + purity)
 
-        // Sorting / listing mode
         var sorting = sortingMode
         params.push("sorting=" + sorting)
         params.push("order=desc")
@@ -524,12 +503,9 @@ QtObject {
 
     function makeRequest(tags, nsfw, limit, page) {
         root.nowMs = Date.now()
-        // nsfw/limit/page kept for API parity with Booru.makeRequest
         if (nsfw === undefined)
             nsfw = allowNsfw
 
-        // Coalesce requests: if something is already running or we are rate limited,
-        // keep only the latest request and retry automatically.
         if (root.isRateLimited || runningRequests > 0 || root.nowMs < root._nextSearchAllowedMs) {
             root.pendingSearch = {
                 tags: tags,
@@ -553,94 +529,88 @@ QtObject {
             "message": ""
         })
 
-        var xhr = new XMLHttpRequest()
-        xhr.open("GET", url)
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState !== XMLHttpRequest.DONE)
-                return
+        root._currentSearchUrl = url
+        root._currentSearchResponse = newResponse
+        runningRequests += 1
 
-            function finish() {
-                runningRequests = Math.max(0, runningRequests - 1)
-                responses = [...responses, newResponse]
-                root.responseFinished()
+        root.searchProcess.command = ["/usr/bin/curl", "-s", "--max-time", "20", "-H", "User-Agent: " + defaultUserAgent, url]
+        root.searchProcess.running = true
+    }
 
-                if (root.pendingSearch && !root.isRateLimited) {
-                    const next = root.pendingSearch
-                    root.pendingSearch = null
-                    Qt.callLater(() => root.makeRequest(next.tags, next.nsfw, next.limit, next.page))
-                }
-            }
-
-            if (xhr.status === 200) {
-                try {
-                    var payload = JSON.parse(xhr.responseText)
-                    var list = payload.data || []
-                    var images = list.map(function(item) {
-                        var path = item.path || ""
-                        var thumbs = item.thumbs || {}
-                        var preview = thumbs.small || thumbs.large || path
-                        var sample = thumbs.large || path
-                        var ratio = 1.0
-                        if (item.ratio) {
-                            ratio = parseFloat(item.ratio)
-                        } else if (item.dimension_x && item.dimension_y) {
-                            ratio = item.dimension_x / item.dimension_y
-                        }
-                        // Wallhaven search results typically do not include per-wallpaper tags.
-                        // We fill tags via the detail endpoint asynchronously.
-                        var tagsJoined = ""
-                        var purity = item.purity || "sfw"
-                        var isNsfw = purity !== "sfw"
-                        var fileExt = ""
-                        if (path && path.indexOf(".") !== -1) {
-                            fileExt = path.split(".").pop()
-                        }
-                        return {
-                            "id": item.id,
-                            "width": item.dimension_x,
-                            "height": item.dimension_y,
-                            "aspect_ratio": ratio,
-                            "tags": tagsJoined,
-                            "rating": isNsfw ? "e" : "s",
-                            "is_nsfw": isNsfw,
-                            "md5": Qt.md5(path || item.id),
-                            "preview_url": preview,
-                            "sample_url": sample,
-                            "file_url": path,
-                            "file_ext": fileExt,
-                            "source": item.url
-                        }
-                    })
-                    newResponse.images = images
-                    newResponse.message = images.length > 0 ? "" : failMessage
-                } catch (e) {
-                    console.log("[Wallhaven] Failed to parse response:", e)
-                    newResponse.message = failMessage
-                } finally {
-                    finish()
-                }
-            } else {
-                console.log("[Wallhaven] Request failed with status:", xhr.status)
-                if (xhr.status === 429) {
-                    // 30s cooldown (simple backoff). Keep message user-friendly.
-                    root.rateLimitedUntilMs = root.nowMs + 30000
-                    newResponse.message = Translation.tr("Wallhaven rate-limited (HTTP 429). Please wait ~30s and try again.")
-                } else {
-                    newResponse.message = failMessage
-                }
-                finish()
-            }
+    function _handleSearchResponse(text): void {
+        runningRequests = Math.max(0, runningRequests - 1)
+        
+        var newResponse = root._currentSearchResponse
+        if (!newResponse) {
+            root._processPendingSearch()
+            return
         }
 
-        try {
-            runningRequests += 1
-            xhr.send()
-        } catch (e) {
-            console.log("[Wallhaven] Error sending request:", e)
-            runningRequests = Math.max(0, runningRequests - 1)
+        if (!text || text.length === 0) {
+            console.log("[Wallhaven] Request failed: empty response")
             newResponse.message = failMessage
             responses = [...responses, newResponse]
             root.responseFinished()
+            root._currentSearchResponse = null
+            root._processPendingSearch()
+            return
+        }
+
+        try {
+            var payload = JSON.parse(text)
+            var list = payload.data || []
+            var images = list.map(function(item) {
+                var path = item.path || ""
+                var thumbs = item.thumbs || {}
+                var preview = thumbs.small || thumbs.large || path
+                var sample = thumbs.large || path
+                var ratio = 1.0
+                if (item.ratio) {
+                    ratio = parseFloat(item.ratio)
+                } else if (item.dimension_x && item.dimension_y) {
+                    ratio = item.dimension_x / item.dimension_y
+                }
+                var tagsJoined = ""
+                var purity = item.purity || "sfw"
+                var isNsfw = purity !== "sfw"
+                var fileExt = ""
+                if (path && path.indexOf(".") !== -1) {
+                    fileExt = path.split(".").pop()
+                }
+                return {
+                    "id": item.id,
+                    "width": item.dimension_x,
+                    "height": item.dimension_y,
+                    "aspect_ratio": ratio,
+                    "tags": tagsJoined,
+                    "rating": isNsfw ? "e" : "s",
+                    "is_nsfw": isNsfw,
+                    "md5": Qt.md5(path || item.id),
+                    "preview_url": preview,
+                    "sample_url": sample,
+                    "file_url": path,
+                    "file_ext": fileExt,
+                    "source": item.url
+                }
+            })
+            newResponse.images = images
+            newResponse.message = images.length > 0 ? "" : failMessage
+        } catch (e) {
+            console.log("[Wallhaven] Failed to parse response:", e)
+            newResponse.message = failMessage
+        }
+
+        responses = [...responses, newResponse]
+        root.responseFinished()
+        root._currentSearchResponse = null
+        root._processPendingSearch()
+    }
+
+    function _processPendingSearch(): void {
+        if (root.pendingSearch && !root.isRateLimited) {
+            const next = root.pendingSearch
+            root.pendingSearch = null
+            Qt.callLater(() => root.makeRequest(next.tags, next.nsfw, next.limit, next.page))
         }
     }
 }
