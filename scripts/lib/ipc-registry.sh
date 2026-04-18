@@ -2,8 +2,8 @@
 # Auto-generated from QML IpcHandler declarations + docs/IPC.md metadata.
 # Do not edit manually.
 # Regenerate: python3 scripts/lib/generate-ipc-registry.py
-# IPC.md hash: fd792e9c25897b4f
-# Targets: 44
+# IPC.md hash: f3dd1f8bcde8479a
+# Targets: 45
 
 declare -gA IPC_TARGET_DESC=(
   [ai]="AI chat service. Multi-provider (Gemini, OpenAI, Mistral) with tool support."
@@ -20,6 +20,7 @@ declare -gA IPC_TARGET_DESC=(
   [coverflowSelector]="Wallpaper coverflow (3D card) picker."
   [gamemode]="Performance mode for gaming. Auto-detects fullscreen apps and disables animations/effects. Can also be toggled manually for those stubborn games that don't go fullscreen properly."
   [globalActions]="Command palette / action registry. Search and execute shell actions from scripts or keybinds."
+  [keyboard]="Keyboard layout switching (Niri only). Cycles through configured keyboard layouts and queries layout info."
   [lock]="Lock screen. For when you need to pretend you're working."
   [mediaControls]="Floating media controls panel."
   [minimize]="Window minimization (Niri workaround - moves windows to hidden workspace)."
@@ -67,6 +68,7 @@ declare -gA IPC_TARGET_FAMILY=(
   [coverflowSelector]="shared"
   [gamemode]="shared"
   [globalActions]="shared"
+  [keyboard]="shared"
   [lock]="shared"
   [mediaControls]="shared"
   [minimize]="shared"
@@ -114,6 +116,7 @@ declare -gA IPC_TARGET_FUNCTIONS=(
   [coverflowSelector]="toggle open close"
   [gamemode]="toggle activate deactivate status"
   [globalActions]="run list search open"
+  [keyboard]="switchLayout switchLayoutPrevious getCurrentLayout getLayouts"
   [lock]="activate deactivate status focus"
   [mediaControls]="toggle close open"
   [minimize]="minimize restore"
@@ -192,6 +195,10 @@ declare -gA IPC_FUNCTION_DESC=(
   ["globalActions:list"]="List all actions, optionally filtered by category"
   ["globalActions:search"]="Fuzzy search actions by name/description/keywords"
   ["globalActions:open"]="Open the overview in action mode"
+  ["keyboard:switchLayout"]="Switch to next keyboard layout"
+  ["keyboard:switchLayoutPrevious"]="Switch to previous keyboard layout"
+  ["keyboard:getCurrentLayout"]="Get the current layout name"
+  ["keyboard:getLayouts"]="Get all configured layout names (JSON array)"
   ["lock:activate"]="Lock the screen"
   ["lock:deactivate"]="Cancel lock and mark screen unlocked"
   ["lock:status"]="Return lock state (\`locked\`, \`activating\`, or \`unlocked\`)"
@@ -315,6 +322,7 @@ bind "Alt+Shift+Tab" { spawn "inir" "altSwitcher" "previous"; }'
   [gamemode]='bind "Super+F12" { spawn "inir" "gamemode" "toggle"; }'
   [globalActions]='bind "Super+Slash" { spawn "inir" "globalActions" "open"; }
 bind "Super+M" { spawn "inir" "globalActions" "run" "toggle-mute"; }'
+  [keyboard]='bind "Mod+Alt+K" { spawn "inir" "keyboard" "switchLayout"; }'
   [lock]='bind "Super+Alt+L" allow-when-locked=true { spawn "inir" "lock" "activate"; }'
   [mpris]='bind "Ctrl+Mod+Space" { spawn "inir" "mpris" "playPause"; }
 bind "Mod+Alt+N" { spawn "inir" "mpris" "next"; }
@@ -332,8 +340,8 @@ bind "Super+Shift+A" { spawn "inir" "region" "search"; }'
   [ytmusic]='bind "Mod+M+Space" { spawn "inir" "ytmusic" "playPause"; }'
 )
 
-IPC_ALL_TARGETS=(ai altSwitcher appCatalog audio bar brightness cheatsheet clipboard cliphistService closeConfirm controlPanel coverflowSelector gamemode globalActions lock mediaControls minimize mpris notifications osd osdVolume osk overlay overview packageSearch panelFamily region search session settings shellUpdate sidebarLeft sidebarRight taskview tiling voiceSearch wactionCenter waffleAltSwitcher wallpaperSelector wbar wnotificationCenter wwidgets ytmusic zoom)
-IPC_SHARED_TARGETS=(ai altSwitcher appCatalog audio bar brightness cheatsheet clipboard cliphistService closeConfirm controlPanel coverflowSelector gamemode globalActions lock mediaControls minimize mpris notifications osdVolume osk overview packageSearch panelFamily region session settings shellUpdate sidebarLeft sidebarRight tiling voiceSearch wallpaperSelector ytmusic zoom)
+IPC_ALL_TARGETS=(ai altSwitcher appCatalog audio bar brightness cheatsheet clipboard cliphistService closeConfirm controlPanel coverflowSelector gamemode globalActions keyboard lock mediaControls minimize mpris notifications osd osdVolume osk overlay overview packageSearch panelFamily region search session settings shellUpdate sidebarLeft sidebarRight taskview tiling voiceSearch wactionCenter waffleAltSwitcher wallpaperSelector wbar wnotificationCenter wwidgets ytmusic zoom)
+IPC_SHARED_TARGETS=(ai altSwitcher appCatalog audio bar brightness cheatsheet clipboard cliphistService closeConfirm controlPanel coverflowSelector gamemode globalActions keyboard lock mediaControls minimize mpris notifications osdVolume osk overview packageSearch panelFamily region session settings shellUpdate sidebarLeft sidebarRight tiling voiceSearch wallpaperSelector ytmusic zoom)
 IPC_II_TARGETS=(overlay)
 IPC_WAFFLE_TARGETS=(osd search taskview wactionCenter waffleAltSwitcher wbar wnotificationCenter wwidgets)
 

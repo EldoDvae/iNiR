@@ -148,6 +148,29 @@ Item {
             }
         }
 
+        // Keyboard layout switch (Niri only)
+        Loader {
+            active: (Config.options?.bar?.utilButtons?.showKeyboardLayoutSwitch ?? false)
+                    && CompositorService.isNiri
+                    && NiriService.keyboardLayoutNames.length > 1
+            visible: active
+            sourceComponent: CircleUtilButton {
+                Layout.alignment: Qt.AlignVCenter
+                onClicked: NiriService.switchLayout()
+                Item {
+                    anchors.fill: parent
+                    MaterialSymbol {
+                        anchors.centerIn: parent
+                        horizontalAlignment: Qt.AlignHCenter
+                        fill: 0
+                        text: "language"
+                        iconSize: Appearance.font.pixelSize.large
+                        color: Appearance.inirEverywhere ? Appearance.inir.colText : Appearance.colors.colOnLayer2
+                    }
+                }
+            }
+        }
+
         Loader {
             readonly property bool micInUse: Privacy.micActive || (Audio?.micBeingAccessed ?? false)
             active: (Config.options?.bar?.utilButtons?.showMicToggle ?? false) || micInUse

@@ -448,6 +448,7 @@
       "showColorPicker": true,
       "showDarkModeToggle": false,
       "showKeyboardToggle": false,
+      "showKeyboardLayoutSwitch": false,
       "showMicToggle": true,
       "showNotepad": true,
       "showPerformanceProfileToggle": false,

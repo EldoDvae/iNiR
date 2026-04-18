@@ -1588,4 +1588,24 @@ Singleton {
         }
     }
 
+    IpcHandler {
+        target: "keyboard"
+
+        function switchLayout(): void {
+            NiriService.switchLayout()
+        }
+
+        function switchLayoutPrevious(): void {
+            NiriService.switchLayoutPrevious()
+        }
+
+        function getCurrentLayout(): string {
+            return NiriService.getCurrentKeyboardLayoutName()
+        }
+
+        function getLayouts(): string {
+            return JSON.stringify(NiriService.keyboardLayoutNames)
+        }
+    }
+
 }

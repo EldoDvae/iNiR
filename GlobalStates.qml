@@ -23,6 +23,7 @@ Singleton {
     property bool osdVolumeOpen: false
     property bool osdMediaOpen: false
     property string osdMediaAction: "play" // "play", "pause", "next", "previous"
+    property bool osdKeyboardLayoutOpen: false
     property bool oskOpen: false
     property bool overlayOpen: false
     property bool overviewOpen: false

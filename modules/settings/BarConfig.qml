@@ -993,21 +993,31 @@ ContentPage {
                     onCheckedChanged: Config.setNestedValue("bar.utilButtons.showKeyboardToggle", checked)
                 }
                 SettingsSwitch {
-                    buttonIcon: "mic"
-                    text: Translation.tr("Mic toggle")
-                    checked: Config.options?.bar?.utilButtons?.showMicToggle ?? false
-                    onCheckedChanged: Config.setNestedValue("bar.utilButtons.showMicToggle", checked)
+                    buttonIcon: "language"
+                    text: Translation.tr("Keyboard layout switch")
+                    checked: Config.options?.bar?.utilButtons?.showKeyboardLayoutSwitch ?? false
+                    onCheckedChanged: Config.setNestedValue("bar.utilButtons.showKeyboardLayoutSwitch", checked)
                 }
             }
 
             ConfigRow {
                 uniform: true
                 SettingsSwitch {
+                    buttonIcon: "mic"
+                    text: Translation.tr("Mic toggle")
+                    checked: Config.options?.bar?.utilButtons?.showMicToggle ?? false
+                    onCheckedChanged: Config.setNestedValue("bar.utilButtons.showMicToggle", checked)
+                }
+                SettingsSwitch {
                     buttonIcon: "dark_mode"
                     text: Translation.tr("Dark/Light mode")
                     checked: Config.options?.bar?.utilButtons?.showDarkModeToggle ?? true
                     onCheckedChanged: Config.setNestedValue("bar.utilButtons.showDarkModeToggle", checked)
                 }
+            }
+
+            ConfigRow {
+                uniform: true
                 SettingsSwitch {
                     buttonIcon: "speed"
                     text: Translation.tr("Power profile")

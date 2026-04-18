@@ -556,6 +556,23 @@ Tiling layout overlay. Pick or cycle through tiling presets for the current work
 
 ---
 
+### keyboard
+
+Keyboard layout switching (Niri only). Cycles through configured keyboard layouts and queries layout info.
+
+| Function | Description |
+|----------|-------------|
+| `switchLayout` | Switch to next keyboard layout |
+| `switchLayoutPrevious` | Switch to previous keyboard layout |
+| `getCurrentLayout` | Get the current layout name |
+| `getLayouts` | Get all configured layout names (JSON array) |
+
+```kdl
+bind "Mod+Alt+K" { spawn "inir" "keyboard" "switchLayout"; }
+```
+
+---
+
 ## Waffle-Specific Targets
 
 These targets only work when using the Waffle (Windows 11) panel style.

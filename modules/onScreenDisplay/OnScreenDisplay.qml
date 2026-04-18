@@ -36,6 +36,10 @@ Scope {
             id: "voiceSearch",
             sourceUrl: "indicators/VoiceSearchIndicator.qml"
         },
+        {
+            id: "keyboardLayout",
+            sourceUrl: "indicators/KeyboardLayoutIndicator.qml"
+        },
     ]
 
     function triggerOsd() {
@@ -122,6 +126,15 @@ Scope {
             } else {
                 osdTimeout.restart();
             }
+        }
+    }
+
+    Connections {
+        target: NiriService
+        enabled: CompositorService.isNiri
+        function onCurrentKeyboardLayoutIndexChanged() {
+            root.currentIndicator = "keyboardLayout";
+            root.triggerOsd();
         }
     }
 
