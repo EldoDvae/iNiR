@@ -274,11 +274,11 @@ Item {
         }
 
         Behavior on implicitWidth {
-            enabled: !root.vertical
+            enabled: !root.vertical && Appearance.animationsEnabled
             animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
         }
         Behavior on implicitHeight {
-            enabled: root.vertical
+            enabled: root.vertical && Appearance.animationsEnabled
             animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
         }
 

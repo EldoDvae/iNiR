@@ -74,10 +74,12 @@ MouseArea {
             : Appearance.inirEverywhere ? Appearance.inir.colBorder : "transparent"
 
         Behavior on color {
+            enabled: Appearance.animationsEnabled
             animation: ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
         }
         Behavior on scale {
-            NumberAnimation { duration: 120; easing.type: Easing.OutCubic }
+            enabled: Appearance.animationsEnabled
+            NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
         }
     }
 

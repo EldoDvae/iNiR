@@ -34,7 +34,7 @@ Item {
     property real startAngle: -90
 
     Behavior on degree {
-        enabled: root.enableAnimation
+        enabled: root.enableAnimation && Appearance.animationsEnabled
         NumberAnimation {
             duration: root.animationDuration
             easing.type: root.easingType

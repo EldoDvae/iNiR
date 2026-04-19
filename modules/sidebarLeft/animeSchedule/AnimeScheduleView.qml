@@ -156,7 +156,8 @@ Item {
             visible: Layout.preferredHeight > 0
             
             Behavior on Layout.preferredHeight {
-                NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                enabled: Appearance.animationsEnabled
+                NumberAnimation { duration: Appearance.animation.elementMoveEnter.duration; easing.type: Appearance.animation.elementMoveEnter.type; easing.bezierCurve: Appearance.animation.elementMoveEnter.bezierCurve }
             }
             
             ButtonGroup {
@@ -210,7 +211,8 @@ Item {
             visible: Layout.preferredHeight > 0
             
             Behavior on Layout.preferredHeight {
-                NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                enabled: Appearance.animationsEnabled
+                NumberAnimation { duration: Appearance.animation.elementMoveEnter.duration; easing.type: Appearance.animation.elementMoveEnter.type; easing.bezierCurve: Appearance.animation.elementMoveEnter.bezierCurve }
             }
             
             RowLayout {

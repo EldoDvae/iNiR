@@ -183,7 +183,7 @@ Item {
                     // Smooth scroll animation
                     Behavior on contentX {
                         enabled: Appearance.animationsEnabled
-                        NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
+                        NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                     }
 
                     WheelHandler {
@@ -257,7 +257,7 @@ Item {
                                 color: wallpaperDelegate.isHovered && !wallpaperDelegate.isCurrentWallpaper
                                     ? ColorUtils.transparentize("black", 0.7)
                                     : "transparent"
-                                Behavior on color { animation: ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve } }
+                                Behavior on color { enabled: Appearance.animationsEnabled; animation: ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve } }
                             }
 
                             // Check icon for selected

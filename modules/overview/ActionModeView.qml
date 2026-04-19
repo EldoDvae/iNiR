@@ -653,7 +653,7 @@ Item {
                     Rectangle {
                         implicitWidth: keyLabel.implicitWidth + 8
                         implicitHeight: keyLabel.implicitHeight + 4
-                        radius: 4
+                        radius: Appearance.rounding.unsharpen
                         color: Appearance.inirEverywhere ? Appearance.inir.colLayer2
                             : Appearance.angelEverywhere ? Appearance.angel.colGlassCard
                             : Appearance.colors.colSecondaryContainer

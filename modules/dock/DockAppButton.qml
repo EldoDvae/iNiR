@@ -507,7 +507,8 @@ DockButton {
                                    : Appearance.inirEverywhere ? Appearance.inir.colText : Appearance.colors.colOnLayer0, 0.5)
 
                             Behavior on implicitWidth {
-                                NumberAnimation { duration: 120; easing.type: Easing.OutQuad }
+                                enabled: Appearance.animationsEnabled
+                                NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                             }
                         }
                     }

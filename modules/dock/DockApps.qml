@@ -528,9 +528,11 @@ Item {
         interactive: false // Dock should never flick/scroll — all items visible
 
         Behavior on implicitWidth {
+            enabled: Appearance.animationsEnabled
             animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
         }
         Behavior on implicitHeight {
+            enabled: Appearance.animationsEnabled
             animation: NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
         }
 
@@ -597,15 +599,17 @@ Item {
                 Behavior on x {
                     enabled: Appearance.animationsEnabled && !root.dropSettlingActive && !dockDelegate.isBeingDragged && !dockDelegate.isDropSettling
                     NumberAnimation {
-                        duration: 250
-                        easing.type: Easing.OutCubic
+                        duration: Appearance.animation.elementResize.duration
+                        easing.type: Appearance.animation.elementResize.type
+                        easing.bezierCurve: Appearance.animation.elementResize.bezierCurve
                     }
                 }
                 Behavior on y {
                     enabled: Appearance.animationsEnabled && !root.dropSettlingActive && !dockDelegate.isBeingDragged && !dockDelegate.isDropSettling
                     NumberAnimation {
-                        duration: 250
-                        easing.type: Easing.OutCubic
+                        duration: Appearance.animation.elementResize.duration
+                        easing.type: Appearance.animation.elementResize.type
+                        easing.bezierCurve: Appearance.animation.elementResize.bezierCurve
                     }
                 }
             }
@@ -625,7 +629,7 @@ Item {
                    : root.dragActive ? 0.85 : 1.0
             Behavior on opacity {
                 enabled: Appearance.animationsEnabled
-                NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
             }
 
             // ─── Insertion line at drop gap ───────────────────────────
@@ -665,7 +669,7 @@ Item {
 
                 Behavior on opacity {
                     enabled: Appearance.animationsEnabled
-                    NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
+                    NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                 }
             }
 

@@ -287,7 +287,7 @@ Item {
                         : Appearance.colors.colLayer1Hover
                 return "transparent"
             }
-            Behavior on color { ColorAnimation { duration: Appearance.animation.elementMoveFast.duration } }
+            Behavior on color { enabled: Appearance.animationsEnabled; ColorAnimation { duration: Appearance.animation.elementMoveFast.duration } }
 
             MaterialSymbol {
                 anchors.centerIn: parent

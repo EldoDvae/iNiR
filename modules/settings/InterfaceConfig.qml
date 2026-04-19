@@ -1648,7 +1648,7 @@ ContentPage {
 
                                     Behavior on opacity {
                                         enabled: Appearance.animationsEnabled
-                                        NumberAnimation { duration: 150 }
+                                        NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                                     }
 
                                     contentItem: MaterialSymbol {

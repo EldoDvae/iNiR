@@ -88,9 +88,19 @@ ComboBox {
 
         MaterialSymbol {
             Layout.rightMargin: 8
-            text: root.popup.visible ? "expand_less" : "expand_more"
+            text: "expand_more"
             iconSize: Appearance.font.pixelSize.normal
             color: root._subtextColor
+            rotation: root.popup.visible ? 180 : 0
+            Behavior on rotation {
+                enabled: Appearance.animationsEnabled
+                RotationAnimation {
+                    duration: Appearance.animation.elementMoveFast.duration
+                    direction: RotationAnimation.Shortest
+                    easing.type: Appearance.animation.elementMoveFast.type
+                    easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve
+                }
+            }
         }
     }
 

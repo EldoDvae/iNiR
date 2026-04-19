@@ -250,16 +250,18 @@ Scope {
                                 property: "opacity"
                                 from: 0
                                 to: 1
-                                duration: 200
-                                easing.type: Easing.OutCubic
+                                duration: Appearance.animation.elementMoveEnter.duration
+                                easing.type: Appearance.animation.elementMoveEnter.type
+                                easing.bezierCurve: Appearance.animation.elementMoveEnter.bezierCurve
                             }
                             NumberAnimation {
                                 target: parent
                                 property: "scale"
                                 from: 0.9
                                 to: 1
-                                duration: 200
-                                easing.type: Easing.OutCubic
+                                duration: Appearance.animation.elementMoveEnter.duration
+                                easing.type: Appearance.animation.elementMoveEnter.type
+                                easing.bezierCurve: Appearance.animation.elementMoveEnter.bezierCurve
                             }
                         }
                         
@@ -277,15 +279,17 @@ Scope {
                                 target: parent
                                 property: "opacity"
                                 to: 0
-                                duration: 150
-                                easing.type: Easing.InCubic
+                                duration: Appearance.animation.elementMoveExit.duration
+                                easing.type: Appearance.animation.elementMoveExit.type
+                                easing.bezierCurve: Appearance.animation.elementMoveExit.bezierCurve
                             }
                             NumberAnimation {
                                 target: parent
                                 property: "scale"
                                 to: 0.9
-                                duration: 150
-                                easing.type: Easing.InCubic
+                                duration: Appearance.animation.elementMoveExit.duration
+                                easing.type: Appearance.animation.elementMoveExit.type
+                                easing.bezierCurve: Appearance.animation.elementMoveExit.bezierCurve
                             }
                             onFinished: root.removeToast(modelData.id)
                         }

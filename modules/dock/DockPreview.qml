@@ -126,7 +126,8 @@ PopupWindow {
 
             Behavior on sourceEdgeMargin {
                 id: marginBehavior
-                NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                enabled: Appearance.animationsEnabled
+                NumberAnimation { duration: Appearance.animation.elementMoveEnter.duration; easing.type: Appearance.animation.elementMoveEnter.type; easing.bezierCurve: Appearance.animation.elementMoveEnter.bezierCurve }
             }
 
             anchors {

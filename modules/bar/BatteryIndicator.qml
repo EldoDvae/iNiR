@@ -47,9 +47,11 @@ MouseArea {
                     visible: opacity > 0
                     
                     Behavior on opacity {
+                        enabled: Appearance.animationsEnabled
                         NumberAnimation { 
                             duration: Appearance.animation.elementMoveFast.duration
-                            easing.type: Easing.OutCubic
+                            easing.type: Appearance.animation.elementMoveFast.type
+                            easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve
                         }
                     }
                 }
