@@ -794,6 +794,95 @@ kill_wrapper() {
     return 0
 }
 
+# Clean up stale Quickshell runtime entries and orphaned qs processes.
+# Called by ExecStopPost in inir.service after crashes where KillMode=process
+# only terminated the main PID, leaving child processes and runtime artifacts.
+cleanup_orphans() {
+    local qs_runtime_dir="/run/user/$(id -u)/quickshell"
+
+    [[ -d "$qs_runtime_dir" ]] || return 0
+
+    # Phase 1: Prune stale by-pid entries (PIDs that no longer exist).
+    # by-pid/PID is a symlink to by-id/INSTANCE_ID.
+    if [[ -d "$qs_runtime_dir/by-pid" ]]; then
+        for pidfile in "$qs_runtime_dir/by-pid"/*; do
+            [[ -e "$pidfile" || -L "$pidfile" ]] || continue
+            local pid
+            pid="$(basename "$pidfile")"
+            if ! kill -0 "$pid" 2>/dev/null; then
+                rm -rf "$pidfile" 2>/dev/null || true
+            fi
+        done
+    fi
+
+    # Phase 2: Prune orphaned by-id instance directories.
+    # An instance dir is orphaned if no by-pid symlink points to it.
+    if [[ -d "$qs_runtime_dir/by-id" ]]; then
+        local live_targets=()
+        # Collect targets of surviving by-pid symlinks
+        for pidfile in "$qs_runtime_dir/by-pid"/*; do
+            [[ -L "$pidfile" ]] || continue
+            local target
+            target="$(readlink -f "$pidfile" 2>/dev/null || true)"
+            [[ -n "$target" ]] && live_targets+=("$target")
+        done
+
+        for iddir in "$qs_runtime_dir/by-id"/*/; do
+            [[ -d "$iddir" ]] || continue
+            local idpath
+            idpath="$(realpath "$iddir" 2>/dev/null || true)"
+            # Keep if referenced by a live by-pid symlink
+            local is_live=false
+            for t in "${live_targets[@]}"; do
+                if [[ "$t" == "$idpath" ]]; then
+                    is_live=true
+                    break
+                fi
+            done
+            if [[ "$is_live" == false ]]; then
+                rm -rf "$iddir" 2>/dev/null || true
+            fi
+        done
+    fi
+
+    # Phase 3: Prune stale by-shell entries (dangling symlinks or empty dirs)
+    if [[ -d "$qs_runtime_dir/by-shell" ]]; then
+        for shelldir in "$qs_runtime_dir/by-shell"/*; do
+            [[ -d "$shelldir" ]] || continue
+            for entry in "$shelldir"/*; do
+                [[ -e "$entry" || -L "$entry" ]] || continue
+                # Remove dangling symlinks
+                if [[ -L "$entry" && ! -e "$entry" ]]; then
+                    rm -f "$entry" 2>/dev/null || true
+                fi
+            done
+            # Remove shelldir if empty
+            rmdir "$shelldir" 2>/dev/null || true
+        done
+    fi
+
+    # Phase 4: Kill orphaned quickshell/qs processes not owned by the live service.
+    # Only target qs processes, never user apps.
+    local alive_pids
+    alive_pids="$(pgrep -x 'quickshell|qs' 2>/dev/null || true)"
+    if [[ -n "$alive_pids" ]]; then
+        local service_main_pid=""
+        service_main_pid="$(systemctl --user show -p MainPID inir.service 2>/dev/null | cut -d= -f2 || true)"
+
+        while IFS= read -r pid; do
+            [[ -n "$pid" ]] || continue
+            # Skip the live service PID and its direct children
+            if [[ -n "$service_main_pid" && "$service_main_pid" != "0" ]]; then
+                [[ "$pid" == "$service_main_pid" ]] && continue
+                local ppid
+                ppid="$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ' || true)"
+                [[ "$ppid" == "$service_main_pid" ]] && continue
+            fi
+            kill "$pid" 2>/dev/null || true
+        done <<< "$alive_pids"
+    fi
+}
+
 kill_shell() {
     local dir="$1"
     # Kill the wrapper first so it doesn't respawn qs after we kill it.
@@ -1327,7 +1416,10 @@ install_user_service() {
     mkdir -p "$systemd_user_dir"
     mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}"
     tmp_file="${XDG_CACHE_HOME:-$HOME/.cache}/inir.service.$$"
-    sed "s|^ExecStart=.*|ExecStart=${launcher_path//&/\\&} run --session|" "$asset_path" > "$tmp_file"
+    local escaped_launcher="${launcher_path//&/\\&}"
+    sed -e "s|^ExecStart=.*|ExecStart=${escaped_launcher} run --session|" \
+        -e "s|^ExecStopPost=-.*|ExecStopPost=-${escaped_launcher} cleanup-orphans|" \
+        "$asset_path" > "$tmp_file"
     cp -f "$tmp_file" "$systemd_user_dir/inir.service"
     rm -f "$tmp_file"
     systemctl --user daemon-reload
@@ -2083,6 +2175,9 @@ case "$command_name" in
         ;;
     service)
         run_service_command "$@"
+        ;;
+    cleanup-orphans)
+        cleanup_orphans
         ;;
     doctor|migrate|status|update|reinstall|rollback|my-changes|uninstall|config|info|backup|logs)
         while [[ $# -gt 0 ]]; do

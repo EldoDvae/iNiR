@@ -3,10 +3,10 @@ Description=iNiR shell
 PartOf=graphical-session.target
 After=graphical-session.target
 Wants=graphical-session.target
-# Rate-limit restarts: max 5 attempts in 30 seconds, then stop trying.
+# Rate-limit restarts: max 3 attempts in 30 seconds, then stop trying.
 # These MUST live in [Unit], not [Service] — systemd ignores them elsewhere.
 StartLimitIntervalSec=30
-StartLimitBurst=5
+StartLimitBurst=3
 
 [Service]
 Type=simple
@@ -20,12 +20,24 @@ Environment=QT_LOGGING_RULES=quickshell.dbus.properties=false;qt.qml.settings.wa
 ExecStart=/usr/bin/inir run --session
 SuccessExitStatus=143
 
+# process mode: only SIGTERM the main PID so user-spawned apps (terminals,
+# media players, etc.) survive shell restarts.  Orphan shell helpers are
+# cleaned by ExecStopPost instead.
 KillMode=process
 KillSignal=SIGTERM
 
-Restart=on-failure
-RestartSec=3
+# on-abnormal: restart on signals (SIGSEGV, SIGABRT) but NOT on non-zero
+# exit codes.  This respects Quickshell's own crash-loop detector — when
+# QS decides it has crashed too many times and exits cleanly, systemd
+# won't override that decision by restarting again.
+Restart=on-abnormal
+RestartSec=5
 TimeoutStopSec=15
+
+# Clean up stale Quickshell runtime entries (by-pid, by-id) left behind
+# after crashes.  KillMode=process only kills the main PID, so orphaned
+# QS child processes and their runtime artifacts accumulate over time.
+ExecStopPost=-/usr/bin/inir cleanup-orphans
 
 # Boost I/O priority so QML/Qt library loading wins over background services
 # during cold-boot I/O contention (portals, tray apps, etc.)
