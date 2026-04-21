@@ -12,8 +12,11 @@
 spawn-at-startup "bash" "-c" "systemctl --user import-environment XDG_MENU_PREFIX && kbuildsycoca6"
 
 // Clipboard history: wl-paste watches the clipboard and cliphist stores it.
+// Using type-specific watchers prevents duplicate entries (browsers offer both
+// text/html and text/plain — without --type, cliphist stores both).
 // Access via iNiR's clipboard overlay (Mod+V).
-spawn-at-startup "bash" "-c" "wl-paste --watch cliphist store &"
+spawn-at-startup "bash" "-c" "wl-paste --type text --watch cliphist store &"
+spawn-at-startup "bash" "-c" "wl-paste --type image --watch cliphist store &"
 
 // Polkit authentication agent — needed for GUI sudo prompts (software install,
 // disk mount, etc.). iNiR's setup auto-detects which agent is installed and
