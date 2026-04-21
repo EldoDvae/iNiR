@@ -74,6 +74,7 @@ Singleton {
     property string generatedPalettePath: `${Directories.stateUserPath}/generated/palette.json`
     property string generatedTerminalPalettePath: `${Directories.stateUserPath}/generated/terminal.json`
     property string generatedThemeMetaPath: `${Directories.stateUserPath}/generated/theme-meta.json`
+    property string generatedChromiumThemePath: `${Directories.stateUserPath}/generated/chromium.theme`
     property string generatedWallpaperCategoryPath: `${Directories.stateUserPath}/generated/wallpaper/category.txt`
     property string cliphistDecode: FileUtils.trimFileProtocol(`/tmp/quickshell/media/cliphist`)
     property string screenshotTemp: "/tmp/quickshell/media/screenshot"

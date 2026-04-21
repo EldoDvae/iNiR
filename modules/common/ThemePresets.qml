@@ -3563,6 +3563,10 @@ Singleton {
         id: scssFileView
     }
 
+    FileView {
+        id: chromiumThemeFileView
+    }
+
     function buildTerminalJson(c) {
         const scss = generateScssFromColors(c);
         const terminalJson = {};
@@ -3586,6 +3590,19 @@ Singleton {
         };
     }
 
+    function hexToRgbTriplet(hex) {
+        const normalized = String(hex ?? "").trim();
+        const match = normalized.match(/^#?([0-9A-Fa-f]{6})$/);
+        if (!match)
+            return "";
+
+        const value = match[1];
+        const r = parseInt(value.slice(0, 2), 16);
+        const g = parseInt(value.slice(2, 4), 16);
+        const b = parseInt(value.slice(4, 6), 16);
+        return `${r},${g},${b}`;
+    }
+
     function writeGeneratedThemeContracts(c) {
         paletteJsonFileView.path = Qt.resolvedUrl(Directories.generatedPalettePath)
         paletteJsonFileView.setText(JSON.stringify(generateColorsJsonObject(c), null, 2))
@@ -3598,6 +3615,12 @@ Singleton {
 
         scssFileView.path = Qt.resolvedUrl(Directories.generatedMaterialScssPath)
         scssFileView.setText(generateScssFromColors(c))
+
+        const chromiumThemeRgb = hexToRgbTriplet(c.m3surfaceContainerLow || c.m3surface || c.m3background || "")
+        if (chromiumThemeRgb.length > 0) {
+            chromiumThemeFileView.path = Qt.resolvedUrl(Directories.generatedChromiumThemePath)
+            chromiumThemeFileView.setText(`${chromiumThemeRgb}\n`)
+        }
     }
 
     // ========== Hover Preview System ==========
