@@ -537,7 +537,9 @@ apply_qt_runtime_env() {
         local _qs_var _qs_val
         for _qs_var in XDG_SESSION_TYPE XDG_SESSION_DESKTOP DESKTOP_SESSION \
                        DISPLAY XCURSOR_THEME XCURSOR_SIZE \
-                       LANG LC_ALL XDG_MENU_PREFIX; do
+                       LANG LC_ALL XDG_MENU_PREFIX \
+                       ELECTRON_OZONE_PLATFORM_HINT QT_STYLE_OVERRIDE \
+                       GDK_BACKEND; do
             if [[ -z "${!_qs_var:-}" ]]; then
                 _qs_val="$(grep "^${_qs_var}=" <<< "$_qs_sys_env" | head -1 | cut -d= -f2- || true)"
                 [[ -n "$_qs_val" ]] && export "${_qs_var}=${_qs_val}"
@@ -560,6 +562,14 @@ apply_qt_runtime_env() {
             done
             export PATH="$_qs_merged"
         fi
+    fi
+
+    # Electron Wayland hint — must be in the process env so launched Electron apps
+    # (Discord, VS Code, Chrome, Brave) use Wayland natively instead of X11.
+    # The systemd import above may already have set it; this is the hardcoded fallback
+    # for race conditions where niri hasn't propagated it yet.
+    if [[ -z "${ELECTRON_OZONE_PLATFORM_HINT:-}" ]]; then
+        export ELECTRON_OZONE_PLATFORM_HINT=auto
     fi
 }
 
@@ -788,6 +798,32 @@ ensure_systemd_graphical_env() {
     # in systemd-launched shells) they fail to open a window entirely.
     if ! grep -q '^XDG_SESSION_TYPE=' <<< "$sys_env" 2>/dev/null; then
         vars_to_import+=("XDG_SESSION_TYPE=wayland")
+    fi
+
+    # ELECTRON_OZONE_PLATFORM_HINT — tells Electron apps (Discord, VS Code, Chrome)
+    # to use Wayland natively.  Niri sets this in its environment{} block for
+    # processes it spawns directly, but Quickshell runs as a systemd service so
+    # apps launched from the shell's Overview/launcher inherit the systemd user
+    # session env instead, which misses this variable.
+    if ! grep -q '^ELECTRON_OZONE_PLATFORM_HINT=' <<< "$sys_env" 2>/dev/null; then
+        vars_to_import+=("ELECTRON_OZONE_PLATFORM_HINT=auto")
+    fi
+
+    # QT_QPA_PLATFORM — tells Qt apps to use the Wayland backend.  Qt usually
+    # auto-detects this from WAYLAND_DISPLAY, but some apps (especially those using
+    # older Qt builds or custom platform plugin paths) need it explicit.  Portal
+    # services reading systemd env also benefit.
+    if ! grep -q '^QT_QPA_PLATFORM=' <<< "$sys_env" 2>/dev/null; then
+        vars_to_import+=("QT_QPA_PLATFORM=wayland")
+    fi
+
+    # QT_STYLE_OVERRIDE — ensures Qt apps launched from portals or systemd-triggered
+    # contexts use the correct widget style (e.g. Darkly for dark KDE themes).
+    # Only set if the compositor provided it (via environment{} block).
+    if ! grep -q '^QT_STYLE_OVERRIDE=' <<< "$sys_env" 2>/dev/null; then
+        if [[ -n "${QT_STYLE_OVERRIDE:-}" ]]; then
+            vars_to_import+=("QT_STYLE_OVERRIDE=$QT_STYLE_OVERRIDE")
+        fi
     fi
 
     # DISPLAY — the XWayland display (e.g. :0 or :1).  Required by Steam, Wine,
