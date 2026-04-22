@@ -581,14 +581,31 @@
       "radius": 100
     },
     "centerClock": true,
+    "clock": {
+      "style": "default",
+      "position": "center"
+    },
+    "dim": {
+      "enable": false,
+      "opacity": 0.3
+    },
     "launchOnStartup": false,
     "materialShapeChars": true,
     "enableAnimation": false,
+    "notifications": {
+      "enable": false,
+      "maxCount": 3,
+      "showBody": true,
+      "position": "auto"
+    },
     "security": {
       "requirePasswordToPower": false,
       "unlockKeyring": true
     },
     "showLockedText": true,
+    "status": {
+      "enable": true
+    },
     "useHyprlock": false
   },
   "media": {
@@ -957,6 +974,8 @@
     "animatePreview": false
   },
   "screenRecord": {
+    "showOsd": false,
+    "showNotifications": true,
     "savePath": "",
     "qualityPreset": "balanced",
     "videoCodec": "libx264",

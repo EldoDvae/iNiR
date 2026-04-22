@@ -424,10 +424,11 @@ Item { // Wrapper
 
         Behavior on implicitHeight {
             id: searchHeightBehavior
-            enabled: GlobalStates.overviewOpen && root.showResults
+            enabled: GlobalStates.overviewOpen && root.showResults && Appearance.animationsEnabled
             NumberAnimation {
-                duration: 200
-                easing.type: Easing.OutQuart
+                duration: Appearance.animation.elementResize.duration
+                easing.type: Appearance.animation.elementResize.type
+                easing.bezierCurve: Appearance.animation.elementResize.bezierCurve
             }
         }
 

@@ -119,8 +119,9 @@ Loader {
             target: popupWindow
             property: "sourceEdgeMargin"
             to: (root.ambientShadowWidth + root.visualMargin)
-            duration: 200
-            easing.type: Easing.OutCubic
+            duration: Appearance.animation.elementMoveFast.duration
+            easing.type: Appearance.animation.elementMoveFast.type
+            easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve
         }
         SequentialAnimation {
             id: closeAnim
@@ -128,8 +129,9 @@ Loader {
                 target: popupWindow
                 property: "sourceEdgeMargin"
                 to: popupWindow.isHorizontalPopup ? -popupWindow.implicitWidth : -popupWindow.implicitHeight
-                duration: 150
-                easing.type: Easing.InCubic
+                duration: Appearance.animation.elementMoveExit.duration
+                easing.type: Appearance.animation.elementMoveExit.type
+                easing.bezierCurve: Appearance.animation.elementMoveExit.bezierCurve
             }
             ScriptAction {
                 script: root.active = false

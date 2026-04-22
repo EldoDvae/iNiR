@@ -64,15 +64,18 @@ Item {
 
     SequentialAnimation {
         id: pulseAnim
+        running: Appearance.animationsEnabled
         NumberAnimation {
             target: root; property: "_pulseScale"
-            to: 0.88; duration: 70
-            easing.type: Easing.InQuad
+            to: 0.88; duration: Appearance.animation.elementMoveFast.duration
+            easing.type: Appearance.animation.elementMoveFast.type
+            easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve
         }
         NumberAnimation {
             target: root; property: "_pulseScale"
-            to: 1.0; duration: 260
-            easing.type: Easing.OutBack; easing.overshoot: 0.5
+            to: 1.0; duration: Appearance.animation.clickBounce.duration
+            easing.type: Appearance.animation.clickBounce.type
+            easing.bezierCurve: Appearance.animation.clickBounce.bezierCurve
         }
     }
 
@@ -130,11 +133,11 @@ Item {
 
                 Behavior on implicitWidth {
                     enabled: Appearance.animationsEnabled
-                    NumberAnimation { duration: 120; easing.type: Easing.OutQuad }
+                    NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                 }
                 Behavior on color {
                     enabled: Appearance.animationsEnabled
-                    ColorAnimation { duration: 180; easing.type: Easing.OutCubic }
+                    ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                 }
             }
         }

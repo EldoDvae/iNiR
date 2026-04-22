@@ -6,6 +6,7 @@ check_conflicts() {
     
     local conflicts=()
     local conflict_services=()
+    local critical_conflicts=()
     local package_manager=""
     
     if command -v pacman &>/dev/null; then
@@ -36,10 +37,35 @@ check_conflicts() {
     conflict_map["mpvpaper"]="Wallpaper Daemon"
     conflict_map["wpaperd"]="Wallpaper Daemon"
     
-    # CachyOS Noctalia shell (conflicts with iNiR's Quickshell setup)
-    conflict_map["noctalia-qs"]="Shell System (Noctalia)"
-    conflict_map["noctalia-shell"]="Shell System (Noctalia)"
-    conflict_map["cachyos-niri-noctalia"]="Shell System (Noctalia)"
+    # Quickshell-based shells — these are critical because they ship their own
+    # Quickshell fork or config that directly conflicts with iNiR at runtime.
+    # Noctalia (CachyOS default Niri shell)
+    conflict_map["cachyos-niri-noctalia"]="Quickshell Shell (Noctalia/CachyOS)"
+    conflict_map["noctalia-shell"]="Quickshell Shell (Noctalia)"
+    conflict_map["noctalia-qs"]="Quickshell Fork (Noctalia)"
+    conflict_map["noctalia-qs-git"]="Quickshell Fork (Noctalia)"
+    # DankMaterialShell
+    conflict_map["dms-shell"]="Quickshell Shell (DankMaterialShell)"
+    conflict_map["dms-shell-git"]="Quickshell Shell (DankMaterialShell)"
+    # Caelestia
+    conflict_map["caelestia-shell"]="Quickshell Shell (Caelestia)"
+    conflict_map["caelestia-shell-git"]="Quickshell Shell (Caelestia)"
+    # BMS
+    conflict_map["bms-shell-bin"]="Quickshell Shell (BMS)"
+
+    # Packages that are critical conflicts — they break iNiR at the package
+    # level (provide/replace quickshell, or own overlapping config paths).
+    # Unlike notification daemons or bars, these cannot coexist at all.
+    declare -A critical_map
+    critical_map["cachyos-niri-noctalia"]=1
+    critical_map["noctalia-shell"]=1
+    critical_map["noctalia-qs"]=1
+    critical_map["noctalia-qs-git"]=1
+    critical_map["dms-shell"]=1
+    critical_map["dms-shell-git"]=1
+    critical_map["caelestia-shell"]=1
+    critical_map["caelestia-shell-git"]=1
+    critical_map["bms-shell-bin"]=1
     
     # Check for installed conflicts
     for pkg in "${!conflict_map[@]}"; do
@@ -62,6 +88,9 @@ check_conflicts() {
         
         if $installed; then
             conflicts+=("$pkg (${conflict_map[$pkg]})")
+            if [[ -n "${critical_map[$pkg]:-}" ]]; then
+                critical_conflicts+=("$pkg")
+            fi
             # Check if it's a systemd service
             if systemctl --user list-unit-files "${pkg}.service" &>/dev/null 2>&1; then
                 conflict_services+=("${pkg}.service")
@@ -72,21 +101,56 @@ check_conflicts() {
     if [ ${#conflicts[@]} -gt 0 ]; then
         echo -e "${STY_YELLOW}Found potential conflicting packages:${STY_RST}"
         for c in "${conflicts[@]}"; do
-            echo -e "  ${STY_RED}⚠${STY_RST} $c"
+            echo -e "  ${STY_RED}!${STY_RST} $c"
         done
         echo ""
-        echo -e "${STY_BOLD}Quickshell provides these functionalities natively.${STY_RST}"
-        echo -e "Running them simultaneously might cause visual glitches or double notifications."
+
+        if [ ${#critical_conflicts[@]} -gt 0 ]; then
+            echo -e "${STY_RED}${STY_BOLD}Critical:${STY_RST} ${critical_conflicts[*]} must be removed for iNiR to work."
+            echo -e "These packages ship their own Quickshell runtime or configs that directly conflict."
+            echo ""
+
+            if [[ "$package_manager" == "pacman" ]]; then
+                # On Arch, offer to remove critical conflicts now.
+                # Removal order matters: meta-packages first, then shells, then runtimes.
+                local ordered_remove=()
+                for pkg in cachyos-niri-noctalia noctalia-shell noctalia-qs noctalia-qs-git \
+                           dms-shell dms-shell-git caelestia-shell caelestia-shell-git bms-shell-bin; do
+                    for cpkg in "${critical_conflicts[@]}"; do
+                        if [[ "$pkg" == "$cpkg" ]]; then
+                            ordered_remove+=("$pkg")
+                        fi
+                    done
+                done
+
+                if [[ "$ask" == "true" ]]; then
+                    if tui_confirm "Remove conflicting packages? (${ordered_remove[*]})"; then
+                        _remove_critical_conflicts "${ordered_remove[@]}"
+                    else
+                        echo -e "${STY_YELLOW}Keeping conflicting packages — iNiR will NOT work correctly.${STY_RST}"
+                    fi
+                else
+                    echo -e "${STY_CYAN}Non-interactive mode: removing conflicting packages...${STY_RST}"
+                    _remove_critical_conflicts "${ordered_remove[@]}"
+                fi
+            else
+                echo -e "${STY_YELLOW}Remove them manually before continuing.${STY_RST}"
+            fi
+            echo ""
+        fi
+
+        echo -e "${STY_BOLD}iNiR provides its own bar, notifications, wallpaper, and shell.${STY_RST}"
+        echo -e "Running other shells/bars simultaneously causes visual glitches or double notifications."
         echo ""
         
-        # Offer to disable conflicting services
+        # Offer to disable non-critical conflicting services
         if [ ${#conflict_services[@]} -gt 0 ]; then
             echo -e "${STY_CYAN}Detected running services:${STY_RST}"
             for svc in "${conflict_services[@]}"; do
                 if systemctl --user is-active "$svc" &>/dev/null; then
-                    echo -e "  ${STY_YELLOW}●${STY_RST} $svc (active)"
+                    echo -e "  ${STY_YELLOW}*${STY_RST} $svc (active)"
                 elif systemctl --user is-enabled "$svc" &>/dev/null; then
-                    echo -e "  ${STY_FAINT}○${STY_RST} $svc (enabled)"
+                    echo -e "  ${STY_FAINT}o${STY_RST} $svc (enabled)"
                 fi
             done
             echo ""
@@ -132,4 +196,30 @@ check_conflicts() {
     else
         log_success "No conflicting packages found."
     fi
+}
+
+# Remove critical conflicting packages on Arch.
+# Uses -Rdd to skip dependency checks since we're replacing the whole stack.
+_remove_critical_conflicts() {
+    local pkg
+    for pkg in "$@"; do
+        if ! pacman -Qi "$pkg" &>/dev/null 2>&1; then
+            continue  # already gone (removed as dependency of a previous one)
+        fi
+
+        # Stop related services before removal
+        local svc_name="${pkg}.service"
+        systemctl --user stop "$svc_name" 2>/dev/null || true
+        systemctl --user disable "$svc_name" 2>/dev/null || true
+
+        log_info "Removing $pkg..."
+        pkg_sudo pacman -Rdd --noconfirm "$pkg" 2>/dev/null \
+            || pkg_sudo pacman -R --noconfirm "$pkg" 2>/dev/null \
+            || log_warning "Could not remove $pkg — install may fail"
+    done
+
+    # After removing noctalia-qs (or its -git variant), quickshell is gone.
+    # The dependency installer will pick it up, but reload the package db
+    # so pacman knows the slot is free.
+    pkg_sudo pacman -Sy 2>/dev/null || true
 }

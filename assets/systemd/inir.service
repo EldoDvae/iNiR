@@ -1,12 +1,17 @@
 [Unit]
 Description=iNiR shell
+# Lifecycle: stop/restart inir when the graphical session stops/restarts.
 PartOf=graphical-session.target
+# Ordering: wait for the compositor to signal readiness (niri is Type=notify,
+# so graphical-session.target is only reached once the Wayland socket exists).
 After=graphical-session.target
-Wants=graphical-session.target
-# Rate-limit restarts: max 5 attempts in 30 seconds, then stop trying.
+# Guard: fail immediately if the graphical session isn't active or starting.
+# inir is a session consumer, not a producer — it must never pull in the target.
+Requisite=graphical-session.target
+# Rate-limit restarts: max 3 attempts in 30 seconds, then stop trying.
 # These MUST live in [Unit], not [Service] — systemd ignores them elsewhere.
 StartLimitIntervalSec=30
-StartLimitBurst=5
+StartLimitBurst=3
 
 [Service]
 Type=simple
@@ -20,16 +25,35 @@ Environment=QT_LOGGING_RULES=quickshell.dbus.properties=false;qt.qml.settings.wa
 ExecStart=/usr/bin/inir run --session
 SuccessExitStatus=143
 
+# process mode: only SIGTERM the main PID so user-spawned apps (terminals,
+# media players, etc.) survive shell restarts.  Orphan shell helpers are
+# cleaned by ExecStopPost instead.
 KillMode=process
 KillSignal=SIGTERM
 
+# on-failure: restart on both signals (SIGSEGV, SIGABRT) AND non-zero exit
+# codes (QML errors, unhandled exceptions).  Clean SIGTERM shutdown is already
+# excluded via SuccessExitStatus=143.  The rate limiter (3 in 30s) prevents
+# infinite crash loops — after 3 rapid failures systemd gives up.
 Restart=on-failure
-RestartSec=3
+RestartSec=5
 TimeoutStopSec=15
+
+# Disable coredumps for this service.  Quickshell segfaults on QML hot-reload
+# and other internal teardown paths; each dump is 45-90 MB and accumulates fast
+# in /var/lib/systemd/coredump.  These are QS-internal crashes, not iNiR bugs —
+# debugging them requires a QS developer build, not production coredumps.
+LimitCORE=0
+
+# Clean up stale Quickshell runtime entries (by-pid, by-id) left behind
+# after crashes.  KillMode=process only kills the main PID, so orphaned
+# QS child processes and their runtime artifacts accumulate over time.
+ExecStopPost=-/usr/bin/inir cleanup-orphans
 
 # Boost I/O priority so QML/Qt library loading wins over background services
 # during cold-boot I/O contention (portals, tray apps, etc.)
 IOSchedulingPriority=2
 
-[Install]
-WantedBy=graphical-session.target
+# No [Install] section — wiring is managed by 'inir service enable' which
+# creates a compositor-specific wants link (e.g. niri.service.wants/) so
+# inir only starts under the correct compositor, not under KDE/GNOME/etc.

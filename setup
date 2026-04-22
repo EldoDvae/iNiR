@@ -213,7 +213,9 @@ sync_user_inir_service_from_repo_if_present() {
     mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}"
     tmp_file="${XDG_CACHE_HOME:-$HOME/.cache}/inir.service.$$"
 
-    sed "s|^ExecStart=.*|ExecStart=${launcher_target//&/\\&} run --session|" "$service_asset" > "$tmp_file"
+    sed -e "s|^ExecStart=.*|ExecStart=${launcher_target//&/\\&} run --session|" \
+        -e "s|^ExecStopPost=-.*|ExecStopPost=-${launcher_target//&/\\&} cleanup-orphans|" \
+        "$service_asset" > "$tmp_file"
 
     if ! cmp -s "$tmp_file" "$service_target"; then
         changed=true
@@ -243,8 +245,26 @@ ensure_user_inir_service_enabled() {
         return 1
     fi
 
+    # Detect the compositor service — never fall back to graphical-session.target
+    # because that target is active in KDE/GNOME/etc.
+    local target=""
+    if systemctl --user cat niri.service &>/dev/null; then
+        target="niri.service"
+    elif systemctl --user cat 'wayland-wm@Hyprland.service' &>/dev/null; then
+        target="wayland-wm@Hyprland.service"
+    fi
+
+    if [[ -z "$target" ]]; then
+        return 1  # no compositor found — don't enable
+    fi
+
+    local wants_dir="${XDG_CONFIG_HOME}/systemd/user/${target}.wants"
+    if [[ ! -e "$wants_dir/inir.service" ]]; then
+        mkdir -p "$wants_dir"
+        ln -sf "$service_path" "$wants_dir/inir.service"
+    fi
+
     systemctl --user daemon-reload >/dev/null 2>&1 || true
-    systemctl --user enable inir.service >/dev/null 2>&1 || true
     return 0
 }
 
@@ -356,10 +376,11 @@ show_version_info() {
         tui_status_line "Migrations:" "$pending pending" "warn"
     fi
 
-    # Shell running status
+    # Shell running status (resolve symlinks so qs -p matches the running instance)
     if [[ -n "$runtime_dir" && -f "$runtime_dir/shell.qml" ]]; then
-        local running_output
-        running_output="$(qs -p "$runtime_dir" list 2>/dev/null || true)"
+        local running_output resolved_runtime_dir
+        resolved_runtime_dir="$(readlink -f "$runtime_dir" 2>/dev/null || printf '%s' "$runtime_dir")"
+        running_output="$(qs -p "$resolved_runtime_dir" list 2>/dev/null || true)"
         if [[ -n "$running_output" && "$running_output" != No\ running\ instances* ]]; then
             tui_status_line "Shell:" "running" "ok"
         else
@@ -499,9 +520,11 @@ show_status() {
 
     tui_title "Health Checks"
 
-    # Check shell status
+    # Check shell status (resolve symlinks so qs -p matches the running instance)
     if [[ -n "$runtime_dir" && -f "$runtime_dir/shell.qml" ]]; then
-        running_output="$(qs -p "$runtime_dir" list 2>/dev/null || true)"
+        local resolved_runtime_dir
+        resolved_runtime_dir="$(readlink -f "$runtime_dir" 2>/dev/null || printf '%s' "$runtime_dir")"
+        running_output="$(qs -p "$resolved_runtime_dir" list 2>/dev/null || true)"
         if [[ -n "$running_output" && "$running_output" != No\ running\ instances* ]]; then
             tui_check_ok "Shell is running"
         else
@@ -653,11 +676,12 @@ show_info() {
 
     echo ""
 
-    # Quick health
+    # Quick health (resolve symlinks so qs -p matches the running instance)
     tui_subtitle "Quick Health"
     if [[ -n "$runtime_dir" && -f "$runtime_dir/shell.qml" ]]; then
-        local running_output
-        running_output="$(qs -p "$runtime_dir" list 2>/dev/null || true)"
+        local running_output resolved_runtime_dir
+        resolved_runtime_dir="$(readlink -f "$runtime_dir" 2>/dev/null || printf '%s' "$runtime_dir")"
+        running_output="$(qs -p "$resolved_runtime_dir" list 2>/dev/null || true)"
         if [[ -n "$running_output" && "$running_output" != No\ running\ instances* ]]; then
             tui_check_ok "Shell is running"
         else
@@ -1481,6 +1505,15 @@ run_update() {
     tui_title "Checking for updates..."
     echo ""
 
+    # Show current branch for awareness
+    local current_branch
+    current_branch="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")"
+    if [[ "$current_branch" != "main" && "$current_branch" != "master" && "$current_branch" != "unknown" ]]; then
+        tui_warn "On branch '$current_branch' (non-release). Updates will track this branch."
+    else
+        tui_info "Branch: $current_branch"
+    fi
+
     local installed_mode=$(get_installed_install_mode)
     local installed_strategy=$(get_installed_update_strategy)
     local package_name=$(get_installed_package_name)
@@ -1510,7 +1543,9 @@ run_update() {
         fi
 
         ensure_user_inir_service_enabled >/dev/null 2>&1 || true
-        if [[ -n "${NIRI_SOCKET:-}" || -n "${WAYLAND_DISPLAY:-}" ]]; then
+        # Only start inir if we're running under a supported compositor.
+        # WAYLAND_DISPLAY alone is not enough — KDE/GNOME set it too.
+        if [[ -n "${NIRI_SOCKET:-}" ]] || pgrep -x niri &>/dev/null || pgrep -x Hyprland &>/dev/null; then
             systemctl --user reset-failed inir.service >/dev/null 2>&1 || true
             systemctl --user start inir.service >/dev/null 2>&1 || true
         fi

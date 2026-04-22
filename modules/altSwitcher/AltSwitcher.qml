@@ -953,7 +953,7 @@ Scope {
                             anchors.horizontalCenter: parent.horizontalCenter
                             width: nameLabelCol.width + 24
                             height: nameLabelCol.height + 16
-                            radius: 6
+                            radius: Appearance.rounding.unsharpenmore
                             color: Qt.rgba(0, 0, 0, 0.75)
                             border.width: 1
                             border.color: Qt.rgba(Appearance.colors.colPrimary.r, Appearance.colors.colPrimary.g, Appearance.colors.colPrimary.b, 0.5)
@@ -1004,7 +1004,7 @@ Scope {
                             anchors.rightMargin: root.skewOffset + 8
                             width: wsBadgeText.width + 8
                             height: 16
-                            radius: 4
+                            radius: Appearance.rounding.unsharpen
                             color: Qt.rgba(0, 0, 0, 0.75)
                             border.width: 1
                             border.color: Qt.rgba(Appearance.colors.colPrimary.r, Appearance.colors.colPrimary.g, Appearance.colors.colPrimary.b, 0.4)
@@ -1030,7 +1030,7 @@ Scope {
                             anchors.leftMargin: root.skewOffset + 8
                             width: floatLabel.width + 8
                             height: 16
-                            radius: 4
+                            radius: Appearance.rounding.unsharpen
                             color: Qt.rgba(0, 0, 0, 0.75)
                             border.width: 1
                             border.color: Qt.rgba(Appearance.colors.colPrimary.r, Appearance.colors.colPrimary.g, Appearance.colors.colPrimary.b, 0.4)
@@ -1102,15 +1102,17 @@ Scope {
                             Behavior on color { 
                                 enabled: !root.isHighLoad
                                 ColorAnimation { 
-                                    duration: 200
-                                    easing.type: Easing.OutCubic
+                                    duration: Appearance.animation.elementMoveFast.duration
+                                    easing.type: Appearance.animation.elementMoveFast.type
+                                    easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve
                                 } 
                             }
                             Behavior on scale { 
                                 enabled: !root.isHighLoad
                                 NumberAnimation { 
-                                    duration: 200
-                                    easing.type: Easing.OutCubic
+                                    duration: Appearance.animation.elementMoveFast.duration
+                                    easing.type: Appearance.animation.elementMoveFast.type
+                                    easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve
                                 } 
                             }
                             

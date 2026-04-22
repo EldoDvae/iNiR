@@ -101,6 +101,7 @@ Rectangle {
     }
 
     Behavior on implicitHeight {
+        enabled: Appearance.animationsEnabled
         NumberAnimation {
             duration: Appearance.animation.elementMove.duration
             easing.type: Appearance.animation.elementMove.type
@@ -159,6 +160,7 @@ Rectangle {
         opacity: collapsed ? 1 : 0
         visible: opacity > 0
         Behavior on opacity {
+            enabled: Appearance.animationsEnabled
             NumberAnimation {
                 id: collapsedBottomWidgetGroupRowFade
                 duration: Appearance.animation.elementMove.duration / 2
@@ -204,6 +206,7 @@ Rectangle {
         opacity: collapsed ? 0 : 1
         visible: opacity > 0
         Behavior on opacity {
+            enabled: Appearance.animationsEnabled
             NumberAnimation {
                 id: bottomWidgetGroupRowFade
                 duration: Appearance.animation.elementMove.duration / 2
@@ -367,6 +370,7 @@ Rectangle {
                     // Y: animate both outgoing and incoming tabs
                     y: (tabStack.realIndex === tabItem.tabIndex) ? 0 : (tabStack.realIndex < tabItem.tabIndex) ? animDistance : -animDistance
                     Behavior on opacity {
+                        enabled: Appearance.animationsEnabled
                         NumberAnimation {
                             duration: tabStack.animationDuration / 2
                             easing.type: Easing.OutCubic

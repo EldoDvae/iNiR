@@ -4,6 +4,7 @@ import qs.modules.common
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
+import qs.services
 
 Singleton {
     id: root
@@ -21,6 +22,9 @@ Singleton {
         // Pinned apps
         const pinnedApps = Config.options?.dock?.pinnedApps ?? [];
         for (const appId of pinnedApps) {
+            // Skip pinned apps with no desktop entry installed
+            if (!AppSearch.lookupDesktopEntry(appId))
+                continue;
             if (!map.has(appId.toLowerCase())) map.set(appId.toLowerCase(), ({
                 pinned: true,
                 toplevels: []

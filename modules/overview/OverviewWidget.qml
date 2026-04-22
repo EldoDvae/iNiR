@@ -403,7 +403,7 @@ Item {
                 border.width: 2
                 border.color: root.activeBorderColor
                 Behavior on x {
-                    enabled: root.focusAnimEnabled
+                    enabled: root.focusAnimEnabled && Appearance.animationsEnabled
                     animation: NumberAnimation {
                         duration: root.focusAnimDuration
                         easing.type: Appearance.animation.elementMoveFast.type
@@ -411,7 +411,7 @@ Item {
                     }
                 }
                 Behavior on y {
-                    enabled: root.focusAnimEnabled
+                    enabled: root.focusAnimEnabled && Appearance.animationsEnabled
                     animation: NumberAnimation {
                         duration: root.focusAnimDuration
                         easing.type: Appearance.animation.elementMoveFast.type
@@ -419,7 +419,7 @@ Item {
                     }
                 }
                 Behavior on topLeftRadius {
-                    enabled: root.focusAnimEnabled
+                    enabled: root.focusAnimEnabled && Appearance.animationsEnabled
                     animation: NumberAnimation {
                         duration: root.focusAnimDuration
                         easing.type: Appearance.animation.elementMoveEnter.type
@@ -427,7 +427,7 @@ Item {
                     }
                 }
                 Behavior on topRightRadius {
-                    enabled: root.focusAnimEnabled
+                    enabled: root.focusAnimEnabled && Appearance.animationsEnabled
                     animation: NumberAnimation {
                         duration: root.focusAnimDuration
                         easing.type: Appearance.animation.elementMoveEnter.type
@@ -435,7 +435,7 @@ Item {
                     }
                 }
                 Behavior on bottomLeftRadius {
-                    enabled: root.focusAnimEnabled
+                    enabled: root.focusAnimEnabled && Appearance.animationsEnabled
                     animation: NumberAnimation {
                         duration: root.focusAnimDuration
                         easing.type: Appearance.animation.elementMoveEnter.type
@@ -443,7 +443,7 @@ Item {
                     }
                 }
                 Behavior on bottomRightRadius {
-                    enabled: root.focusAnimEnabled
+                    enabled: root.focusAnimEnabled && Appearance.animationsEnabled
                     animation: NumberAnimation {
                         duration: root.focusAnimDuration
                         easing.type: Appearance.animation.elementMoveEnter.type

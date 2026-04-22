@@ -1150,7 +1150,7 @@ Item {
                 }
                 width: mediaTypeRow.implicitWidth + 10
                 height: 26
-                radius: 6
+                radius: Appearance.rounding.unsharpenmore
                 color: root.badgeSurfaceColor
 
                 Row {

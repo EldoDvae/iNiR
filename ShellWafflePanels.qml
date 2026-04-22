@@ -1,6 +1,7 @@
 import qs.modules.cheatsheet
 import qs.modules.lock
 import qs.modules.onScreenKeyboard
+import qs.modules.recordingOsd
 import qs.modules.overview
 import qs.modules.polkit
 import qs.modules.regionSelector
@@ -70,6 +71,7 @@ Item {
     DeferredPanelLoader { identifier: "iiWallpaperSelector"; component: WallpaperSelector {} }
     DeferredPanelLoader { identifier: "iiCoverflowSelector"; component: WallpaperCoverflow {} }
     DeferredPanelLoader { identifier: "iiClipboard"; component: ClipboardModule.ClipboardPanel {} }
+    DeferredPanelLoader { identifier: "iiRecordingOsd"; component: RecordingOsd {} }
 
     // Waffle Clipboard - handles IPC when panelFamily === "waffle"
     LazyLoader { active: Config.ready && GlobalStates.deferredPanelsReady && Config.options?.panelFamily === "waffle"; component: WaffleClipboardModule.WaffleClipboard {} }

@@ -14,9 +14,11 @@ Singleton {
 
     property bool _runningRequested: false
     property bool _initRequested: false
+    property int _persistentConsumers: 0
 
     // Auto-stop polling when nothing requested it recently.
     // This prevents the service from running forever after briefly opening a panel.
+    // Persistent consumers (bar, vertical bar) prevent auto-stop entirely.
     readonly property int _autoStopDelayMs: Config.options?.resources?.autoStopDelay ?? 15000
     property real memoryTotal: 1
     property real memoryFree: 0
@@ -173,8 +175,23 @@ Singleton {
             detectHybridGpu.running = true;
             findCpuMaxFreqProc.running = true;
         }
-        autoStopTimer.restart();
+        if (root._persistentConsumers === 0)
+            autoStopTimer.restart();
         pollTimer.restart();
+    }
+
+    // Register a persistent consumer (always-visible panel like bar).
+    // While any persistent consumer is registered, auto-stop is disabled.
+    function keepAlive(): void {
+        root._persistentConsumers++;
+        autoStopTimer.stop();
+        ensureRunning();
+    }
+
+    function releaseKeepAlive(): void {
+        root._persistentConsumers = Math.max(0, root._persistentConsumers - 1);
+        if (root._persistentConsumers === 0 && root._runningRequested)
+            autoStopTimer.restart();
     }
 
     function stop(): void {
@@ -188,7 +205,8 @@ Singleton {
         interval: root._autoStopDelayMs
         repeat: false
         onTriggered: {
-            root.stop();
+            if (root._persistentConsumers === 0)
+                root.stop();
         }
     }
 

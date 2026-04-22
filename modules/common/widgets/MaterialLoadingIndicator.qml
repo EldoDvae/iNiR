@@ -37,7 +37,7 @@ Rectangle {
     rotation: pullRotation + continuousRotation + leapRotation
 
     RotationAnimation on continuousRotation {
-        running: root.loading
+        running: root.loading && Appearance.animationsEnabled
         duration: 12000
         easing.type: Easing.Linear
         loops: Animation.Infinite

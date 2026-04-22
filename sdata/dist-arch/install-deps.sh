@@ -201,30 +201,61 @@ for qs_conflict in quickshell-git quickshell-bin; do
 done
 
 #####################################################################################
-# Pre-install: resolve Noctalia shell package conflicts (CachyOS)
-# CachyOS ships noctalia-qs / noctalia-shell / cachyos-niri-noctalia which own
-# overlapping Quickshell configs and compositor integration files.
+# Pre-install: resolve Quickshell-based shell conflicts
+# Other shells ship their own Quickshell fork or own overlapping configs.
+# Order matters: meta-packages first, then shells, then runtimes, so pacman
+# doesn't complain about dangling dependents.
 #####################################################################################
-for noctalia_pkg in noctalia-qs noctalia-shell cachyos-niri-noctalia; do
-  if pacman -Qi "$noctalia_pkg" &>/dev/null 2>&1; then
-    log_warning "$noctalia_pkg is installed and conflicts with iNiR"
+_qs_shell_conflicts=(
+  # Noctalia (CachyOS default Niri shell) — meta first, then shell, then runtime
+  cachyos-niri-noctalia
+  noctalia-shell
+  noctalia-qs
+  noctalia-qs-git
+  # DankMaterialShell
+  dms-shell
+  dms-shell-git
+  # Caelestia
+  caelestia-shell
+  caelestia-shell-git
+  # BMS
+  bms-shell-bin
+)
+
+_qs_shell_found=false
+for _qs_pkg in "${_qs_shell_conflicts[@]}"; do
+  if pacman -Qi "$_qs_pkg" &>/dev/null 2>&1; then
+    _qs_shell_found=true
+    log_warning "$_qs_pkg is installed and conflicts with iNiR"
+
+    # Stop related services before removal
+    systemctl --user stop "${_qs_pkg}.service" 2>/dev/null || true
+    systemctl --user disable "${_qs_pkg}.service" 2>/dev/null || true
+
     if $ask; then
-      if tui_confirm "Remove $noctalia_pkg? (required for iNiR)"; then
-        log_info "Removing $noctalia_pkg..."
-        v pkg_sudo pacman -Rdd --noconfirm "$noctalia_pkg" 2>/dev/null \
-          || v pkg_sudo pacman -R --noconfirm "$noctalia_pkg" \
-          || log_warning "Could not remove $noctalia_pkg — install may fail"
+      if tui_confirm "Remove $_qs_pkg? (required for iNiR)"; then
+        log_info "Removing $_qs_pkg..."
+        v pkg_sudo pacman -Rdd --noconfirm "$_qs_pkg" 2>/dev/null \
+          || v pkg_sudo pacman -R --noconfirm "$_qs_pkg" \
+          || log_warning "Could not remove $_qs_pkg — install may fail"
       else
-        log_warning "Keeping $noctalia_pkg — iNiR may not work correctly"
+        log_warning "Keeping $_qs_pkg — iNiR may not work correctly"
       fi
     else
-      log_info "Non-interactive: removing $noctalia_pkg"
-      pkg_sudo pacman -Rdd --noconfirm "$noctalia_pkg" 2>/dev/null \
-        || pkg_sudo pacman -R --noconfirm "$noctalia_pkg" 2>/dev/null \
-        || log_warning "Could not remove $noctalia_pkg — install may fail"
+      log_info "Non-interactive: removing $_qs_pkg"
+      pkg_sudo pacman -Rdd --noconfirm "$_qs_pkg" 2>/dev/null \
+        || pkg_sudo pacman -R --noconfirm "$_qs_pkg" 2>/dev/null \
+        || log_warning "Could not remove $_qs_pkg — install may fail"
     fi
   fi
 done
+
+# After removing a shell that provides quickshell (e.g. noctalia-qs), the
+# quickshell slot is empty.  Sync the package db so pacman can install the
+# upstream quickshell cleanly.
+if $_qs_shell_found; then
+  pkg_sudo pacman -Sy 2>/dev/null || true
+fi
 tui_info "Installing official repo packages..."
 
 # These packages are now in official Arch repos (extra) - NO AUR, NO COMPILATION!
@@ -423,7 +454,7 @@ tui_info "Registering dependencies with pacman..."
 _meta_dir="./sdata/dist-arch/inir-deps"
 if [[ -f "$_meta_dir/PKGBUILD" ]]; then
   # Update pkgver from VERSION file
-  _inir_ver="$(cat ./VERSION 2>/dev/null || echo '2.21.0')"
+  _inir_ver="$(cat ./VERSION 2>/dev/null || echo '2.22.1')"
   sed -i "s/^pkgver=.*/pkgver=${_inir_ver}/" "$_meta_dir/PKGBUILD"
 
   (

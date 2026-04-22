@@ -51,7 +51,7 @@ Item {
                     clip: true
 
                     Behavior on implicitHeight {
-                        enabled: enableHeightAnimation
+                        enabled: enableHeightAnimation && Appearance.animationsEnabled
                         NumberAnimation {
                             duration: Appearance.animation.elementMoveFast.duration
                             easing.type: Appearance.animation.elementMoveFast.type
@@ -157,6 +157,7 @@ Item {
         anchors.fill: parent
 
         Behavior on opacity {
+            enabled: Appearance.animationsEnabled
             animation: NumberAnimation { duration: Appearance.animation.elementMove.duration; easing.type: Appearance.animation.elementMove.type; easing.bezierCurve: Appearance.animation.elementMove.bezierCurve }
         }
 

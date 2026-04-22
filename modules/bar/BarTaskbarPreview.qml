@@ -108,8 +108,9 @@ PopupWindow {
                 : (root.isVertical ? -root.implicitWidth : -root.implicitHeight)
 
             Behavior on sourceEdgeMargin {
+                enabled: Appearance.animationsEnabled
                 id: marginBehavior
-                NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
             }
 
             anchors {

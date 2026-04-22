@@ -39,7 +39,7 @@ Rectangle {
 
     Behavior on color {
         enabled: Appearance.animationsEnabled
-        ColorAnimation { duration: 200; easing.type: Easing.OutCubic }
+        ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
     }
 
     // ─── Border ──────────────────────────────────────────────────────
@@ -52,7 +52,7 @@ Rectangle {
 
     Behavior on border.color {
         enabled: Appearance.animationsEnabled
-        ColorAnimation { duration: 200; easing.type: Easing.OutCubic }
+        ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
     }
 
     // ─── Drop shadow ─────────────────────────────────────────────────

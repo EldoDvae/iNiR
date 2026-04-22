@@ -283,6 +283,31 @@ ContentPage {
         readonly property bool isCustomPreset: (Config.options?.screenRecord?.qualityPreset ?? "balanced") === "custom"
 
         SettingsGroup {
+            SettingsSwitch {
+                buttonIcon: "pip"
+                text: Translation.tr("Show recording overlay")
+                checked: Config.options?.screenRecord?.showOsd ?? false
+                onCheckedChanged: {
+                    Config.setNestedValue("screenRecord.showOsd", checked)
+                    let panels = [...(Config.options?.enabledPanels ?? [])]
+                    const idx = panels.indexOf("iiRecordingOsd")
+                    if (checked && idx === -1) {
+                        panels.push("iiRecordingOsd")
+                        Config.setNestedValue("enabledPanels", panels)
+                    } else if (!checked && idx !== -1) {
+                        panels.splice(idx, 1)
+                        Config.setNestedValue("enabledPanels", panels)
+                    }
+                }
+            }
+
+            SettingsSwitch {
+                buttonIcon: "notifications"
+                text: Translation.tr("Recording notifications")
+                checked: Config.options?.screenRecord?.showNotifications ?? true
+                onCheckedChanged: Config.setNestedValue("screenRecord.showNotifications", checked)
+            }
+
             NoticeBox {
                 Layout.fillWidth: true
                 materialIcon: recordingCapabilitiesLoaded ? (gpuRecordingAvailable ? "memory" : "developer_mode") : "progress_activity"

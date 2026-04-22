@@ -200,7 +200,7 @@ Scope {
                         Rectangle {
                             height: 24
                             width: statusText.width + 14
-                            radius: 12
+                            radius: Appearance.rounding.small
                             color: Appearance.colors.colPrimaryContainer
                             StyledText {
                                 id: statusText

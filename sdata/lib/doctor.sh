@@ -810,6 +810,10 @@ check_quickshell_loads() {
         return 0
     fi
 
+    # Resolve symlinks — Quickshell stores the real path internally, so
+    # `qs -p <symlink>` won't match the running instance.
+    target="$(readlink -f "$target")"
+
     # Skip if no graphical session
     if [[ -z "$WAYLAND_DISPLAY" && -z "$DISPLAY" && -z "$NIRI_SOCKET" ]]; then
         doctor_pass "Quickshell (skipped - no display)"
@@ -991,6 +995,39 @@ check_conflicting_services() {
         doctor_fix "Stopped conflicting: ${running[*]} (iNiR has built-in notifications, re-enable with: systemctl --user enable <service>)"
     else
         doctor_pass "No conflicting notification daemons"
+    fi
+}
+
+check_conflicting_shells() {
+    # Quickshell-based shells that conflict with iNiR at the package level.
+    # These provide/replace quickshell or own overlapping config paths.
+    local shell_pkgs=(
+        "cachyos-niri-noctalia"
+        "noctalia-shell"
+        "noctalia-qs"
+        "noctalia-qs-git"
+        "dms-shell"
+        "dms-shell-git"
+        "caelestia-shell"
+        "caelestia-shell-git"
+        "bms-shell-bin"
+    )
+    local found=()
+
+    if ! command -v pacman &>/dev/null; then
+        doctor_pass "Conflicting shells (not Arch, skipped)"
+        return 0
+    fi
+
+    for pkg in "${shell_pkgs[@]}"; do
+        pacman -Qi "$pkg" &>/dev/null 2>&1 && found+=("$pkg")
+    done
+
+    if [[ ${#found[@]} -gt 0 ]]; then
+        doctor_fail "Conflicting Quickshell shells installed: ${found[*]}"
+        echo -e "    ${STY_FAINT}These must be removed for iNiR to work. Run: ./setup install${STY_RST}"
+    else
+        doctor_pass "No conflicting Quickshell shells"
     fi
 }
 
@@ -1197,7 +1234,7 @@ check_niri_config() {
 ###############################################################################
 
 run_doctor_with_fixes() {
-    local total_steps=18
+    local total_steps=19
     doctor_passed=0
     doctor_failed=0
     doctor_fixed=0
@@ -1265,13 +1302,16 @@ run_doctor_with_fixes() {
     tui_step 15 $total_steps "Checking conflicting services"
     check_conflicting_services
     
-    tui_step 16 $total_steps "Checking wallpaper health"
+    tui_step 16 $total_steps "Checking conflicting shells"
+    check_conflicting_shells
+    
+    tui_step 17 $total_steps "Checking wallpaper health"
     check_wallpaper_health
     
-    tui_step 17 $total_steps "Checking environment variables"
+    tui_step 18 $total_steps "Checking environment variables"
     check_environment_vars
     
-    tui_step 18 $total_steps "Checking Niri config"
+    tui_step 19 $total_steps "Checking Niri config"
     check_niri_config
     
     echo ""

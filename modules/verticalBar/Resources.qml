@@ -11,7 +11,8 @@ MouseArea {
     implicitWidth: columnLayout.implicitWidth
     hoverEnabled: true
 
-    Component.onCompleted: ResourceUsage.ensureRunning()
+    Component.onCompleted: ResourceUsage.keepAlive()
+    Component.onDestruction: ResourceUsage.releaseKeepAlive()
 
     ColumnLayout {
         id: columnLayout

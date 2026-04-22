@@ -81,8 +81,9 @@ Loader {
                 target: popupWindow
                 property: "sourceEdgeMargin"
                 to: 8 // margin
-                duration: 200
-                easing.type: Easing.OutCubic
+                duration: Appearance.animation.elementMoveFast.duration
+                easing.type: Appearance.animation.elementMoveFast.type
+                easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve
             }
         }
 

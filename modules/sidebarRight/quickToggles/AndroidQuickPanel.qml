@@ -17,6 +17,7 @@ AbstractQuickPanel {
     // Sizes
     implicitHeight: contentItem.implicitHeight + root.padding * 2
     Behavior on implicitHeight {
+        enabled: Appearance.animationsEnabled
         animation: NumberAnimation { duration: Appearance.animation.elementMove.duration; easing.type: Appearance.animation.elementMove.type; easing.bezierCurve: Appearance.animation.elementMove.bezierCurve }
     }
     property real spacing: 6

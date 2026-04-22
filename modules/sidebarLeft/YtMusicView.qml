@@ -765,7 +765,7 @@ Item {
                         StyledText {
                             anchors.centerIn: parent
                             text: YtMusic.oauthUserCode
-                            font.pixelSize: 22; font.weight: Font.Bold; font.letterSpacing: 3
+                            font.pixelSize: Appearance.font.pixelSize.huge; font.weight: Font.Bold; font.letterSpacing: 3
                             color: root.colPrimary
                         }
                     }

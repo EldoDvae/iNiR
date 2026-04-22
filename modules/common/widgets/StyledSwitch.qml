@@ -30,9 +30,11 @@ Switch {
             : Appearance.angelEverywhere ? Appearance.angel.colBorder : Appearance.m3colors.m3outline
 
         Behavior on color {
+            enabled: Appearance.animationsEnabled
             animation: ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
         }
         Behavior on border.color {
+            enabled: Appearance.animationsEnabled
             animation: ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
         }
     }
@@ -49,6 +51,7 @@ Switch {
         anchors.leftMargin: root.checked ? ((root.pressed || root.down) ? (22 * root.scale) : 24 * root.scale) : ((root.pressed || root.down) ? (2 * root.scale) : 8 * root.scale)
 
         Behavior on anchors.leftMargin {
+            enabled: Appearance.animationsEnabled
             NumberAnimation {
                 duration: Appearance.animationCurves.expressiveFastSpatialDuration
                 easing.type: Easing.BezierSpline
@@ -56,6 +59,7 @@ Switch {
             }
         }
         Behavior on width {
+            enabled: Appearance.animationsEnabled
             NumberAnimation {
                 duration: Appearance.animationCurves.expressiveFastSpatialDuration
                 easing.type: Easing.BezierSpline
@@ -63,6 +67,7 @@ Switch {
             }
         }
         Behavior on height {
+            enabled: Appearance.animationsEnabled
             NumberAnimation {
                 duration: Appearance.animationCurves.expressiveFastSpatialDuration
                 easing.type: Easing.BezierSpline
@@ -70,6 +75,7 @@ Switch {
             }
         }
         Behavior on color {
+            enabled: Appearance.animationsEnabled
             animation: ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
         }
     }

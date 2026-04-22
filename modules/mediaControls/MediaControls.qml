@@ -135,16 +135,16 @@ Scope {
                     Transition {
                         to: "visible"
                         enabled: Appearance.animationsEnabled
-                        NumberAnimation { properties: "y"; duration: 350; easing.type: Easing.OutQuint }
-                        NumberAnimation { properties: "opacity"; duration: 250; easing.type: Easing.OutCubic }
-                        NumberAnimation { properties: "scale"; duration: 350; easing.type: Easing.OutBack; easing.overshoot: 1.2 }
+                        NumberAnimation { properties: "y"; duration: Appearance.animation.elementMoveEnter.duration; easing.type: Appearance.animation.elementMoveEnter.type; easing.bezierCurve: Appearance.animation.elementMoveEnter.bezierCurve }
+                        NumberAnimation { properties: "opacity"; duration: Appearance.animation.elementMoveExit.duration; easing.type: Appearance.animation.elementMoveExit.type; easing.bezierCurve: Appearance.animation.elementMoveExit.bezierCurve }
+                        NumberAnimation { properties: "scale"; duration: Appearance.animation.elementResize.duration; easing.type: Easing.OutBack; easing.overshoot: 1.2 }
                     },
                     Transition {
                         from: "visible"
                         enabled: Appearance.animationsEnabled
-                        NumberAnimation { properties: "y"; duration: 250; easing.type: Easing.InQuint }
-                        NumberAnimation { properties: "opacity"; duration: 200; easing.type: Easing.InCubic }
-                        NumberAnimation { properties: "scale"; duration: 250; easing.type: Easing.InBack; easing.overshoot: 1.0 }
+                        NumberAnimation { properties: "y"; duration: Appearance.animation.elementMoveExit.duration; easing.type: Appearance.animation.elementMoveExit.type; easing.bezierCurve: Appearance.animation.elementMoveExit.bezierCurve }
+                        NumberAnimation { properties: "opacity"; duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
+                        NumberAnimation { properties: "scale"; duration: Appearance.animation.elementMoveExit.duration; easing.type: Easing.InBack; easing.overshoot: 1.0 }
                     }
                 ]
 

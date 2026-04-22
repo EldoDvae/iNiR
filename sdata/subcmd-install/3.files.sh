@@ -166,18 +166,55 @@ case "${SKIP_QUICKSHELL}" in
     fi
 
     local _service_refresh_status=1
-    if sync_user_inir_service_from_repo_if_present; then
-      _service_refresh_status=0
-    else
-      _service_refresh_status=$?
-    fi
-    if [[ $_service_refresh_status -eq 0 ]]; then
-      log_success "User inir.service refreshed"
+    local _service_dir="${XDG_CONFIG_HOME}/systemd/user"
+    local _service_asset="${REPO_ROOT}/assets/systemd/inir.service"
+    local _service_target="${_service_dir}/inir.service"
+
+    if [[ -f "$_service_asset" ]]; then
+      mkdir -p "$_service_dir"
+
+      if [[ -f "$_service_target" ]]; then
+        # Existing install: sync from repo template
+        if sync_user_inir_service_from_repo_if_present; then
+          _service_refresh_status=0
+          log_success "User inir.service refreshed"
+        fi
+      else
+        # Fresh install: create service from template, rewriting ExecStart path
+        local _tmp_svc="${XDG_CACHE_HOME:-$HOME/.cache}/inir.service.$$"
+        local _launcher_escaped="${INIR_LAUNCHER_PATH//&/\\&}"
+        sed -e "s|^ExecStart=.*|ExecStart=${_launcher_escaped} run --session|" \
+            -e "s|^ExecStopPost=-.*|ExecStopPost=-${_launcher_escaped} cleanup-orphans|" \
+            "$_service_asset" > "$_tmp_svc"
+        cp -f "$_tmp_svc" "$_service_target"
+        rm -f "$_tmp_svc"
+        systemctl --user daemon-reload >/dev/null 2>&1 || true
+        _service_refresh_status=0
+        log_success "User inir.service installed"
+      fi
     fi
 
-    if [[ -f "${XDG_CONFIG_HOME}/systemd/user/inir.service" ]]; then
-      systemctl --user enable inir.service >/dev/null 2>&1 || true
-      log_success "User inir.service enabled"
+    if [[ -f "$_service_target" ]]; then
+      # Wire to compositor-specific wants so inir only starts under the correct
+      # compositor — NOT under KDE/GNOME/etc.  Never fall back to
+      # graphical-session.target: that target is active in ANY desktop session.
+      local _comp_target=""
+      if systemctl --user cat niri.service &>/dev/null; then
+        _comp_target="niri.service"
+      elif systemctl --user cat 'wayland-wm@Hyprland.service' &>/dev/null; then
+        _comp_target="wayland-wm@Hyprland.service"
+      fi
+
+      if [[ -n "$_comp_target" ]]; then
+        local _wants_dir="${XDG_CONFIG_HOME}/systemd/user/${_comp_target}.wants"
+        mkdir -p "$_wants_dir"
+        ln -sf "${XDG_CONFIG_HOME}/systemd/user/inir.service" "$_wants_dir/inir.service"
+        systemctl --user daemon-reload >/dev/null 2>&1 || true
+        log_success "User inir.service enabled (wired to ${_comp_target})"
+      else
+        log_warning "No supported compositor detected (niri or Hyprland)"
+        log_warning "inir.service not enabled — run 'inir service enable' from your compositor session"
+      fi
     fi
 
     if [[ -f "${REPO_ROOT}/assets/icons/desktop-symbolic.svg" ]]; then
@@ -320,7 +357,8 @@ if command -v sddm &>/dev/null; then
         log_info "Skipping ii-pixel-sddm setup"
       fi
     else
-      log_info "Skipping ii-pixel-sddm setup in non-interactive install"
+      # Non-interactive: auto-install SDDM theme
+      extras_install_sddm_theme "yes"
     fi
   fi
 fi
@@ -542,13 +580,10 @@ if [[ -d "dots/.config/fontconfig" ]]; then
   install_dir__sync "dots/.config/fontconfig" "${XDG_CONFIG_HOME}/fontconfig"
 fi
 
-# illogical-impulse config.json (use defaults for distribution)
+# Config (use defaults for distribution)
 if [[ -f "defaults/config.json" ]]; then
   v mkdir -p "${DOTS_CORE_CONFDIR}"
   install_file__auto_backup "defaults/config.json" "${DOTS_CORE_CONFDIR}/config.json"
-elif [[ -f "dots/.config/illogical-impulse/config.json" ]]; then
-  # Fallback to dots (legacy)
-  install_file__auto_backup "dots/.config/illogical-impulse/config.json" "${DOTS_CORE_CONFDIR}/config.json"
 fi
 
 # DISABLED: WebApp plugins — requires quickshell-webengine rebuild, re-enable when ready

@@ -178,8 +178,22 @@ EOF
 }
 
 generate_kdeglobals() {
-    local icon_theme
+    local icon_theme font_raw mono_raw font_name font_size mono_name mono_size
     icon_theme=$(gsettings get org.gnome.desktop.interface icon-theme 2>/dev/null | tr -d "'")
+
+    # Read current GTK fonts so wallpaper theme changes don't reset user fonts
+    font_raw=$(gsettings get org.gnome.desktop.interface font-name 2>/dev/null | tr -d "'")
+    mono_raw=$(gsettings get org.gnome.desktop.interface monospace-font-name 2>/dev/null | tr -d "'")
+    if [[ -n "$font_raw" ]]; then
+        font_size="${font_raw##* }"
+        font_name="${font_raw% *}"
+        font_name="${font_name%"${font_name##*[![:space:]]}"}"
+    fi
+    if [[ -n "$mono_raw" ]]; then
+        mono_size="${mono_raw##* }"
+        mono_name="${mono_raw% *}"
+        mono_name="${mono_name%"${mono_name##*[![:space:]]}"}"
+    fi
     if [[ -z "$icon_theme" ]]; then
         if [[ -d "$HOME/.local/share/icons/WhiteSur-dark" || -d "/usr/share/icons/WhiteSur-dark" ]]; then
             icon_theme="WhiteSur-dark"
@@ -337,6 +351,10 @@ ForegroundVisited=${PRIMARY}
 
 [General]
 ColorScheme=Darkly
+${font_name:+fixed=${mono_name:-$font_name},${mono_size:-$font_size},-1,5,50,0,0,0,0,0}
+${font_name:+font=${font_name},${font_size},-1,5,50,0,0,0,0,0}
+${font_name:+menuFont=${font_name},${font_size},-1,5,50,0,0,0,0,0}
+${font_name:+toolBarFont=${font_name},${font_size},-1,5,50,0,0,0,0,0}
 
 [Icons]
 Theme=${icon_theme}

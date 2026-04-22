@@ -307,10 +307,10 @@ start_recording_command() {
         fallback_cmd+=(-R "$AUDIO_SAMPLE_RATE")
     fi
 
-    notify-send "Starting recording" "$output_name" -a 'Recorder' & disown
+    if is_truthy "$SHOW_NOTIFICATIONS"; then notify-send "Starting recording" "$output_name" -a 'Recorder' & disown; fi
     if ! "${preferred_cmd[@]}"; then
         if is_truthy "$ENABLE_FALLBACK"; then
-            notify-send "Recording fallback" "Preferred encoder failed, retrying with safe mode" -a 'Recorder' & disown
+            if is_truthy "$SHOW_NOTIFICATIONS"; then notify-send "Recording fallback" "Preferred encoder failed, retrying with safe mode" -a 'Recorder' & disown; fi
             "${fallback_cmd[@]}"
         else
             return 1
@@ -337,6 +337,7 @@ VIDEO_PRESET="veryfast"
 VIDEO_CRF="21"
 VAAPI_FILTER="scale_vaapi=format=nv12:out_range=full"
 ENABLE_FALLBACK="true"
+SHOW_NOTIFICATIONS="true"
 if [[ -f "$CONFIG_FILE" ]] && command -v jq >/dev/null 2>&1; then
     SAVE_PATH=$(jq -r '.screenRecord.savePath // empty' "$CONFIG_FILE" 2>/dev/null)
     QUALITY_PRESET=$(jq -r '.screenRecord.qualityPreset // "balanced"' "$CONFIG_FILE" 2>/dev/null)
@@ -354,7 +355,8 @@ if [[ -f "$CONFIG_FILE" ]] && command -v jq >/dev/null 2>&1; then
     VIDEO_PRESET=$(jq -r '.screenRecord.preset // "veryfast"' "$CONFIG_FILE" 2>/dev/null)
     VIDEO_CRF=$(jq -r '.screenRecord.crf // 21' "$CONFIG_FILE" 2>/dev/null)
     VAAPI_FILTER=$(jq -r '.screenRecord.vaapiFilter // "scale_vaapi=format=nv12:out_range=full"' "$CONFIG_FILE" 2>/dev/null)
-    ENABLE_FALLBACK=$(jq -r '.screenRecord.enableFallback // true' "$CONFIG_FILE" 2>/dev/null)
+    ENABLE_FALLBACK=$(jq -r 'if .screenRecord.enableFallback == null then "true" else .screenRecord.enableFallback end' "$CONFIG_FILE" 2>/dev/null)
+    SHOW_NOTIFICATIONS=$(jq -r 'if .screenRecord.showNotifications == null then "true" else .screenRecord.showNotifications end' "$CONFIG_FILE" 2>/dev/null)
 fi
 
 HARDWARE_DEVICE="$(resolve_hardware_device "$HARDWARE_DEVICE")"
@@ -412,7 +414,7 @@ for ((i=0;i<${#ARGS[@]};i++)); do
         if (( i+1 < ${#ARGS[@]} )); then
             MANUAL_REGION="${ARGS[i+1]}"
         else
-            notify-send "Recording cancelled" "No region specified for --region" -a 'Recorder' & disown
+            if is_truthy "$SHOW_NOTIFICATIONS"; then notify-send "Recording cancelled" "No region specified for --region" -a 'Recorder' & disown; fi
             exit 1
         fi
     elif [[ "${ARGS[i]}" == "--sound" ]]; then
@@ -423,7 +425,7 @@ for ((i=0;i<${#ARGS[@]};i++)); do
 done
 
 if pgrep wf-recorder > /dev/null; then
-    notify-send "Recording Stopped" "Stopped" -a 'Recorder' &
+    if is_truthy "$SHOW_NOTIFICATIONS"; then notify-send "Recording Stopped" "Stopped" -a 'Recorder' & fi
     pkill wf-recorder &
 else
     timestamp="$(getdate)"
@@ -440,7 +442,7 @@ else
             region="$MANUAL_REGION"
         else
             if ! region="$(slurp 2>&1)"; then
-                notify-send "Recording cancelled" "Selection was cancelled" -a 'Recorder' & disown
+                if is_truthy "$SHOW_NOTIFICATIONS"; then notify-send "Recording cancelled" "Selection was cancelled" -a 'Recorder' & disown; fi
                 exit 1
             fi
         fi

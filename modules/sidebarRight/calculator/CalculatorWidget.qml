@@ -318,7 +318,7 @@ FocusScope {
                         visible: hasMemory
                         implicitWidth: memLabel.implicitWidth + 8
                         implicitHeight: 20
-                        radius: 4
+                        radius: Appearance.rounding.unsharpen
                         color: Appearance.colors.colSecondaryContainer
 
                         StyledText {

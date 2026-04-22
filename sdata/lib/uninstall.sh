@@ -278,9 +278,16 @@ uninstall_stop_services() {
 
     # Stop super daemon if running
     if command -v systemctl &>/dev/null && [[ -d /run/systemd/system ]]; then
-        if systemctl --user is-active inir.service &>/dev/null || systemctl --user is-enabled inir.service &>/dev/null; then
-            systemctl --user disable --now inir.service 2>/dev/null || true
-        fi
+        # Stop the service
+        systemctl --user stop inir.service 2>/dev/null || true
+        # Remove all wants links (compositor-specific and legacy graphical-session)
+        local _sd_user="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+        for _wd in "$_sd_user"/*.wants; do
+            [[ -d "$_wd" ]] || continue
+            rm -f "$_wd/inir.service" 2>/dev/null || true
+        done
+        # Also try legacy disable in case old [Install] symlinks exist
+        systemctl --user disable inir.service 2>/dev/null || true
         systemctl --user reset-failed inir.service 2>/dev/null || true
 
         if systemctl --user is-active inir-super-overview.service &>/dev/null; then

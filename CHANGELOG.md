@@ -5,6 +5,63 @@ All notable changes to iNiR will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.22.1] - 2026-04-22
+
+Hotfix round. Half the install pipeline was quietly broken and nobody noticed because existing users don't re-install. Fresh CachyOS users noticed though — loudly.
+
+### Added
+- **Branch awareness**: non-main branches now visually stand out everywhere — bar update indicator, settings about page, update overlay, `inir version` CLI, and `setup update`. Tertiary-colored hints, no blocking, just so people know they're off the release track.
+- **Conflicting shell detection**: install and doctor now detect all known Quickshell-based shells (noctalia, DankMaterialShell, caelestia, bms) and handle removal in the correct order — meta-package first, then shell, then runtime. CachyOS users who picked Niri from the installer no longer have to manually fight package conflicts.
+
+### Fixed
+- **20-60 second gray screen on fresh boot**: two `systemctl --user show-environment` D-Bus calls ran sequentially at startup, each blocking 10-30s when the user manager wasn't warm yet. Now cached with a single 3s-timeout call. Worst case dropped from a full minute of staring at nothing to ~3 seconds.
+- **Shell never auto-starting on boot**: fresh installs never created the systemd service file. `sync_user_inir_service_from_repo_if_present()` only updates existing files and bails on missing ones. Added a fresh-install code path that creates the service from template.
+- **Shell starting on KDE/GNOME** *(again)*: `detect_compositor_service()` still fell back to `graphical-session.target` in several code paths even after 2.22.0's [Install] section removal. KDE activates that target too. Nuked every remaining fallback — if we can't detect your compositor, we refuse to wire the service.
+- **Install silently dying at phase 3**: migration 023 had top-level `set -euo pipefail` and `exit 0`. The migration system loads via `source`, so those killed the parent setup process. Everything after migrations never ran. Rewrote to use the standard function pattern.
+- **ExecStopPost path wrong on repo-sync installs**: service sync only rewrote `ExecStart`, leaving `ExecStopPost` pointing to `/usr/bin/inir`. Cleanup-orphans failed silently on every shutdown.
+- **SDDM theme skipped with `-y`**: non-interactive installs explicitly skipped the SDDM theme. Now installs automatically.
+- **Bar resources freezing after 15s**: ResourceUsage auto-stops polling after 15s. The bar never renewed its subscription, so CPU/RAM/temp went stale until you opened a sidebar. Persistent panels now use `keepAlive()`/`releaseKeepAlive()`.
+- **Doctor launching duplicate shell**: symlink path vs resolved path mismatch in `qs -p` calls. Now resolves symlinks first.
+- **VSCode/Cursor/OpenCode theming broken**: orphaned `strip_neovim_spec()` referencing undefined variable crashed the editors module with `set -euo pipefail`, killing all editor theming.
+- **Phantom dock icons for uninstalled apps**: pinned apps with no `.desktop` file (e.g. Firefox on Fedora) no longer show ghost icons. The pin stays in config so the icon comes back if you install the app later.
+
+### Changed
+- **Removed stale legacy config**: `dots/.config/illogical-impulse/config.json` was a 349-key relic from the end-4 era. Fresh installs always used `defaults/config.json` (856 keys) — the fallback was dead code that would have delivered a broken config if it ever triggered.
+
+## [2.22.0] - 2026-04-21
+
+The "community contributions edition". Turns out people actually use this thing and want to make it better. Who knew.
+
+### Added
+- **Lock screen overhaul**: multiple clock styles (default, minimal, analog, binary), configurable position, dim overlay with adjustable opacity, notification icons that expand to show details, on-screen keyboard, grouped notifications by app with count badges. Both ii and waffle families. Full settings UI integration.
+- **Recording OSD**: draggable overlay pill that shows elapsed time during screen recording. Collapsed/expanded modes with audio/mic toggles. Glass background for aurora/angel styles. Disabled by default, enable in Settings > Tools > Screen Recording.
+- **Chromium theme pipeline**: auto-generates a Chrome/Chromium theme from wallpaper colors, integrated into the color generation pipeline.
+- **Recording notification toggle**: suppress start/stop notifications independently from the OSD in settings.
+
+### Fixed
+- **Shell starting on KDE/GNOME**: removed `[Install]` section from systemd unit. inir now wires via compositor-specific `.wants/` symlinks instead of `WantedBy=graphical-session.target`. Migration 022 moves existing users.
+- **Cursor theme inconsistency across apps**: niri config, gsettings, and `environment.d` could all hold different cursor themes. Changing cursor in settings now syncs all three sources so Electron/XWayland apps match.
+- **Animation token misapplication**: 21 animations across 16 files were using `elementMoveEnter` (400ms) instead of `elementMoveFast` (200ms) for fast feedback like popup opacity, hover states, and dock previews. Also fixed a timer interval incorrectly gated by `animationsEnabled`.
+- **Systray overflow behavior**: overflow popup was auto-closing while a right-click context menu was still open, orphaning it. Now suppresses auto-close when a menu is active. Also increased the base close timeout from 700ms to 1500ms and the context menu hover grace period to 450ms.
+- **Time format not following user preference**: lock screens and sidebar clock now use `DateTime.time` instead of hardcoded `Qt.formatTime`.
+- **Qt font clobbered on wallpaper change**: kdeglobals now reads the current gsettings font before writing, preserving user font choice.
+- **`inir status` false negative**: setup script wasn't resolving symlinks before passing paths to `qs -p`, so dev setups always reported "not running".
+- **Recording notification config ignored**: jq `//` operator treats `false` as falsy, so `false // true` returned `true`. Boolean config reads now use explicit null checks.
+- **Notify-send always firing**: bash `&&` binds tighter than `&`, so the is_truthy guard was being backgrounded unconditionally. Switched to if/then/fi.
+- **Clipboard duplicates from browsers**: copying from a browser stored both the HTML and plain text versions as separate entries. Switched to type-specific wl-paste watchers (`--type text` and `--type image`) per cliphist upstream recommendation. Migration 023 patches existing users.
+- **Single-window auto-expand unreliable**: rewrote from a timer-retry-focus loop into direct event-driven checks from niri window/workspace handlers. No more needing to switch workspaces for it to trigger.
+
+### Changed
+- **Animation tokens**: migrated hardcoded animation durations and easing curves across ~30 files to use Appearance design tokens, gated by `animationsEnabled`.
+- **Neovim theming**: replaced inline lua generation with external `inir.nvim` plugin via `neovim_themegen.sh`.
+- **Systemd hardening**: coredumps disabled (LimitCORE=0), DISPLAY exported to systemd env on start.
+- **SDDM service**: enabled during install phase.
+- **Audio fallback**: wpctl now falls back to next available sink when USB audio disconnects.
+- **Environment bridge**: `ensure_systemd_graphical_env` now exports `ELECTRON_OZONE_PLATFORM_HINT`, `QT_QPA_PLATFORM`, and cursor vars to the systemd session, fixing Electron apps crashing when launched from the shell instead of a terminal.
+
+### Contributors
+Thanks to [@kirisaki-vk](https://github.com/kirisaki-vk) for the time format fix and Qt font preservation, [@orcusforyou](https://github.com/orcusforyou) for the systray timeout fix, and [@yukazakiri](https://github.com/yukazakiri) for the chromium theme pipeline and neovim plugin migration.
+
 ## [2.21.1] - 2026-04-16
 
 ### Added

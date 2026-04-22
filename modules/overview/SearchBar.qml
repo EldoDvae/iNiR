@@ -73,7 +73,7 @@ RowLayout {
 
         Behavior on implicitWidth {
             id: searchWidthBehavior
-            enabled: root.animateWidth
+            enabled: root.animateWidth && Appearance.animationsEnabled
             NumberAnimation {
                 duration: Appearance.animation.elementResize.duration
                 easing.type: Appearance.animation.elementResize.type
@@ -167,6 +167,7 @@ RowLayout {
                 }
             }
             Behavior on color {
+                enabled: Appearance.animationsEnabled
                 animation: ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
             }
         }

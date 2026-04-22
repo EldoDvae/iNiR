@@ -10,6 +10,7 @@ import qs.modules.common
 import qs.modules.common.widgets
 import qs.modules.common.functions
 import qs.modules.bar as Bar
+import qs.modules.background.widgets.clock as BackgroundClock
 import Quickshell
 import Quickshell.Services.SystemTray
 
@@ -22,6 +23,7 @@ MouseArea {
     // Show login view when explicitly switched OR when there's password text
     property bool showLoginView: currentView === "login"
     property bool hasAttemptedUnlock: false
+    property bool oskVisible: false
     
     readonly property bool requirePasswordToPower: Config.options?.lock?.security?.requirePasswordToPower ?? true
     readonly property bool blurEnabled: Config.options?.lock?.blur?.enable ?? true
@@ -207,6 +209,18 @@ MouseArea {
         }
     }
 
+    // Wallpaper dim overlay
+    Rectangle {
+        anchors.fill: parent
+        color: "#000000"
+        opacity: (Config.options?.lock?.dim?.enable ?? false) ? (Config.options?.lock?.dim?.opacity ?? 0.3) : 0
+        z: 0
+
+        Behavior on opacity {
+            NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
+        }
+    }
+
     // ===== CLOCK VIEW (Initial) =====
     Item {
         id: clockView
@@ -228,63 +242,285 @@ MouseArea {
             }
         }
         
-        // Clock - Material You style (centered, large)
-        ColumnLayout {
-            anchors.centerIn: parent
-            anchors.verticalCenterOffset: -80
-            spacing: 8
-            
-            // Time
-            Text {
-                id: clockText
-                Layout.alignment: Qt.AlignHCenter
-                text: Qt.formatTime(new Date(), "hh:mm")
-                font.pixelSize: Math.round(108 * Appearance.fontSizeScale)
-                font.weight: Font.DemiBold
-                font.family: Appearance.font.family.appearance
-                color: Appearance.colors.colOnSurface
-                
-                layer.enabled: Appearance.effectsEnabled
-                layer.effect: DropShadow {
-                    horizontalOffset: 0
-                    verticalOffset: 3
-                    radius: 16
-                    samples: 33
-                    color: Qt.rgba(0, 0, 0, 0.5)
+        // Config-driven clock properties
+        readonly property string clockStyle: Config.options?.lock?.clock?.style ?? "default"
+        readonly property string clockPosition: Config.options?.lock?.clock?.position ?? "center"
+        readonly property bool statusEnabled: Config.options?.lock?.status?.enable ?? true
+
+        // Status row - compact indicators at top
+        Loader {
+            active: clockView.statusEnabled
+            anchors {
+                top: parent.top
+                topMargin: 24
+                horizontalCenter: parent.horizontalCenter
+            }
+
+            sourceComponent: Row {
+                spacing: 16
+
+                // WiFi
+                Row {
+                    spacing: 4
+                    visible: Network.wifiEnabled
+
+                    MaterialSymbol {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: Network.materialSymbol ?? "signal_wifi_off"
+                        iconSize: 16
+                        color: Appearance.colors.colOnSurface
+
+                        layer.enabled: Appearance.effectsEnabled
+                        layer.effect: DropShadow {
+                            horizontalOffset: 0; verticalOffset: 1; radius: 4; samples: 9
+                            color: Qt.rgba(0, 0, 0, 0.4)
+                        }
+                    }
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: Network.networkName ?? ""
+                        visible: text.length > 0 && text.length < 16
+                        font.pixelSize: Appearance.font.pixelSize.smaller
+                        font.family: Appearance.font.family.main
+                        color: Appearance.colors.colOnSurfaceVariant
+
+                        layer.enabled: Appearance.effectsEnabled
+                        layer.effect: DropShadow {
+                            horizontalOffset: 0; verticalOffset: 1; radius: 4; samples: 9
+                            color: Qt.rgba(0, 0, 0, 0.4)
+                        }
+                    }
                 }
-                
-                Timer {
-                    interval: 1000
-                    running: true
-                    repeat: true
-                    onTriggered: clockText.text = Qt.formatTime(new Date(), "hh:mm")
+
+                // Bluetooth
+                MaterialSymbol {
+                    visible: BluetoothStatus.enabled
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: BluetoothStatus.connected ? "bluetooth_connected" : "bluetooth"
+                    iconSize: 16
+                    color: Appearance.colors.colOnSurface
+
+                    layer.enabled: Appearance.effectsEnabled
+                    layer.effect: DropShadow {
+                        horizontalOffset: 0; verticalOffset: 1; radius: 4; samples: 9
+                        color: Qt.rgba(0, 0, 0, 0.4)
+                    }
+                }
+
+                // Volume
+                Row {
+                    spacing: 4
+
+                    MaterialSymbol {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: Audio.value <= 0 ? "volume_off"
+                            : Audio.value < 0.33 ? "volume_mute"
+                            : Audio.value < 0.66 ? "volume_down"
+                            : "volume_up"
+                        iconSize: 16
+                        color: Appearance.colors.colOnSurface
+
+                        layer.enabled: Appearance.effectsEnabled
+                        layer.effect: DropShadow {
+                            horizontalOffset: 0; verticalOffset: 1; radius: 4; samples: 9
+                            color: Qt.rgba(0, 0, 0, 0.4)
+                        }
+                    }
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: Math.round(Audio.value * 100) + "%"
+                        font.pixelSize: Appearance.font.pixelSize.smaller
+                        font.family: Appearance.font.family.numbers
+                        color: Appearance.colors.colOnSurfaceVariant
+
+                        layer.enabled: Appearance.effectsEnabled
+                        layer.effect: DropShadow {
+                            horizontalOffset: 0; verticalOffset: 1; radius: 4; samples: 9
+                            color: Qt.rgba(0, 0, 0, 0.4)
+                        }
+                    }
+                }
+
+                // Battery (laptop only)
+                Row {
+                    spacing: 4
+                    visible: UPower.displayDevice?.isPresent ?? false
+
+                    MaterialSymbol {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: {
+                            const pct = UPower.displayDevice?.percentage ?? 0
+                            const charging = UPower.displayDevice?.state === UPowerDeviceState.Charging
+                            if (charging) return "battery_charging_full"
+                            if (pct <= 10) return "battery_alert"
+                            if (pct <= 30) return "battery_2_bar"
+                            if (pct <= 60) return "battery_4_bar"
+                            if (pct <= 80) return "battery_5_bar"
+                            return "battery_full"
+                        }
+                        iconSize: 16
+                        color: {
+                            const pct = UPower.displayDevice?.percentage ?? 0
+                            return pct <= 15 ? Appearance.colors.colError : Appearance.colors.colOnSurface
+                        }
+
+                        layer.enabled: Appearance.effectsEnabled
+                        layer.effect: DropShadow {
+                            horizontalOffset: 0; verticalOffset: 1; radius: 4; samples: 9
+                            color: Qt.rgba(0, 0, 0, 0.4)
+                        }
+                    }
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: Math.round(UPower.displayDevice?.percentage ?? 0) + "%"
+                        font.pixelSize: Appearance.font.pixelSize.smaller
+                        font.family: Appearance.font.family.numbers
+                        color: Appearance.colors.colOnSurfaceVariant
+
+                        layer.enabled: Appearance.effectsEnabled
+                        layer.effect: DropShadow {
+                            horizontalOffset: 0; verticalOffset: 1; radius: 4; samples: 9
+                            color: Qt.rgba(0, 0, 0, 0.4)
+                        }
+                    }
                 }
             }
-            
-            // Date
-            Text {
-                id: dateText
-                Layout.alignment: Qt.AlignHCenter
-                text: Qt.formatDate(new Date(), "dddd, d MMMM")
-                font.pixelSize: Math.round(22 * Appearance.fontSizeScale)
-                font.weight: Font.Normal
-                font.family: Appearance.font.family.main
-                color: Appearance.colors.colOnSurface
-                
-                layer.enabled: Appearance.effectsEnabled
-                layer.effect: DropShadow {
-                    horizontalOffset: 0
-                    verticalOffset: 1
-                    radius: 8
-                    samples: 17
-                    color: Qt.rgba(0, 0, 0, 0.4)
+        }
+
+        // Clock container - position-aware
+        Item {
+            id: clockContainer
+            width: clockContent.implicitWidth
+            height: clockContent.implicitHeight
+
+            states: [
+                State {
+                    name: "center"; when: clockView.clockPosition === "center"
+                    AnchorChanges {
+                        target: clockContainer
+                        anchors.horizontalCenter: clockView.horizontalCenter
+                        anchors.verticalCenter: clockView.verticalCenter
+                    }
+                    PropertyChanges { target: clockContainer; anchors.verticalCenterOffset: -80 }
+                },
+                State {
+                    name: "topLeft"; when: clockView.clockPosition === "topLeft"
+                    AnchorChanges {
+                        target: clockContainer
+                        anchors.left: clockView.left
+                        anchors.top: clockView.top
+                    }
+                    PropertyChanges { target: clockContainer; anchors.leftMargin: 48; anchors.topMargin: 80 }
+                },
+                State {
+                    name: "bottomLeft"; when: clockView.clockPosition === "bottomLeft"
+                    AnchorChanges {
+                        target: clockContainer
+                        anchors.left: clockView.left
+                        anchors.bottom: clockView.bottom
+                    }
+                    PropertyChanges { target: clockContainer; anchors.leftMargin: 48; anchors.bottomMargin: 140 }
                 }
-                
-                Timer {
-                    interval: 60000
-                    running: true
-                    repeat: true
-                    onTriggered: dateText.text = Qt.formatDate(new Date(), "dddd, d MMMM")
+            ]
+
+            // Default digital clock
+            ColumnLayout {
+                id: clockContent
+                visible: clockView.clockStyle !== "analog"
+                spacing: 4
+
+                Text {
+                    id: clockText
+                    Layout.alignment: clockView.clockPosition === "center" ? Qt.AlignHCenter : Qt.AlignLeft
+                    text: DateTime.time
+                    font.pixelSize: Math.round((clockView.clockStyle === "minimal" ? 72 : 112) * Appearance.fontSizeScale)
+                    font.weight: Font.Light
+                    font.family: Appearance.font.family.numbers
+                    color: Appearance.colors.colOnSurface
+
+                    layer.enabled: Appearance.effectsEnabled
+                    layer.effect: DropShadow {
+                        horizontalOffset: 0
+                        verticalOffset: 3
+                        radius: 16
+                        samples: 33
+                        color: Qt.rgba(0, 0, 0, 0.5)
+                    }
+                }
+
+                Text {
+                    id: dateText
+                    Layout.alignment: clockView.clockPosition === "center" ? Qt.AlignHCenter : Qt.AlignLeft
+                    text: Qt.formatDate(new Date(), "dddd, d MMMM")
+                    font.pixelSize: Math.round((clockView.clockStyle === "minimal" ? 15 : 20) * Appearance.fontSizeScale)
+                    font.weight: Font.Normal
+                    font.family: Appearance.font.family.title
+                    font.letterSpacing: 0.5
+                    color: Appearance.colors.colOnSurface
+
+                    layer.enabled: Appearance.effectsEnabled
+                    layer.effect: DropShadow {
+                        horizontalOffset: 0
+                        verticalOffset: 1
+                        radius: 8
+                        samples: 17
+                        color: Qt.rgba(0, 0, 0, 0.4)
+                    }
+
+                    Timer {
+                        interval: 60000
+                        running: true
+                        repeat: true
+                        onTriggered: dateText.text = Qt.formatDate(new Date(), "dddd, d MMMM")
+                    }
+                }
+            }
+
+            // Analog clock - CookieClock from background widgets
+            Loader {
+                id: analogClockLoader
+                active: clockView.clockStyle === "analog"
+                anchors.centerIn: parent
+
+                sourceComponent: Item {
+                    id: analogRoot
+                    width: cookieClock.implicitSize + dateTextAnalog.implicitHeight + 20
+                    height: width
+
+                    BackgroundClock.CookieClock {
+                        id: cookieClock
+                        implicitSize: Math.round(230 * Appearance.fontSizeScale)
+                        anchors.horizontalCenter: parent.horizontalCenter
+                    }
+
+                    Text {
+                        id: dateTextAnalog
+                        anchors {
+                            horizontalCenter: parent.horizontalCenter
+                            top: cookieClock.bottom
+                            topMargin: 16
+                        }
+                        text: Qt.formatDate(new Date(), "dddd, d MMMM")
+                        font.pixelSize: Math.round(16 * Appearance.fontSizeScale)
+                        font.weight: Font.Normal
+                        font.family: Appearance.font.family.title
+                        font.letterSpacing: 0.5
+                        color: Appearance.colors.colOnSurface
+
+                        layer.enabled: Appearance.effectsEnabled
+                        layer.effect: DropShadow {
+                            horizontalOffset: 0; verticalOffset: 1; radius: 8; samples: 17
+                            color: Qt.rgba(0, 0, 0, 0.4)
+                        }
+
+                        Timer {
+                            interval: 60000; running: true; repeat: true
+                            onTriggered: dateTextAnalog.text = Qt.formatDate(new Date(), "dddd, d MMMM")
+                        }
+                    }
                 }
             }
         }
@@ -305,6 +541,311 @@ MouseArea {
                 player: MprisController.activePlayer
                 width: 360
                 height: 120
+            }
+        }
+
+        // Lock screen notifications - grouped by app, read-only
+        Loader {
+            id: lockNotificationsLoader
+            readonly property bool lockNotifEnabled: Config.options?.lock?.notifications?.enable ?? false
+            readonly property int lockNotifMaxCount: Config.options?.lock?.notifications?.maxCount ?? 3
+            readonly property bool lockNotifShowBody: Config.options?.lock?.notifications?.showBody ?? true
+            readonly property string lockNotifPosition: {
+                const pos = Config.options?.lock?.notifications?.position ?? "auto"
+                return pos === "auto" ? "center" : pos
+            }
+            active: lockNotifEnabled && Notifications.list.length > 0
+
+            anchors {
+                top: mediaWidgetLoader.active ? mediaWidgetLoader.bottom : parent.verticalCenter
+                topMargin: mediaWidgetLoader.active ? 16 : 100
+                bottom: parent.bottom
+                bottomMargin: 80
+            }
+            width: Math.min(380, parent.width - 80)
+
+            states: [
+                State {
+                    name: "center"; when: lockNotificationsLoader.lockNotifPosition === "center"
+                    AnchorChanges {
+                        target: lockNotificationsLoader
+                        anchors.horizontalCenter: clockView.horizontalCenter
+                    }
+                },
+                State {
+                    name: "left"; when: lockNotificationsLoader.lockNotifPosition === "left"
+                    AnchorChanges {
+                        target: lockNotificationsLoader
+                        anchors.left: clockView.left
+                    }
+                    PropertyChanges { target: lockNotificationsLoader; anchors.leftMargin: 40 }
+                },
+                State {
+                    name: "right"; when: lockNotificationsLoader.lockNotifPosition === "right"
+                    AnchorChanges {
+                        target: lockNotificationsLoader
+                        anchors.right: clockView.right
+                    }
+                    PropertyChanges { target: lockNotificationsLoader; anchors.rightMargin: 40 }
+                }
+            ]
+
+            sourceComponent: Column {
+                spacing: 8
+                clip: true
+
+                Repeater {
+                    model: {
+                        const apps = Notifications.appNameList
+                        const max = lockNotificationsLoader.lockNotifMaxCount
+                        return apps.length > max ? apps.slice(0, max) : apps
+                    }
+
+                    delegate: Item {
+                        id: groupDelegate
+                        required property var modelData
+                        readonly property var group: Notifications.groupsByAppName[modelData] ?? null
+                        readonly property var latestNotif: group?.notifications?.[0] ?? null
+                        readonly property int groupCount: group?.notifications?.length ?? 0
+                        property bool expanded: false
+
+                        width: parent.width
+                        height: groupCol.implicitHeight
+                        visible: latestNotif !== null
+
+                        Column {
+                            id: groupCol
+                            width: parent.width
+                            spacing: 4
+
+                            // Main card — always visible, clickable to expand
+                            Rectangle {
+                                id: groupCard
+                                width: parent.width
+                                height: groupContent.implicitHeight + 16
+                                radius: Appearance.rounding.normal
+                                color: groupMouseArea.containsMouse
+                                    ? ColorUtils.transparentize(Appearance.colors.colLayer1, 0.04)
+                                    : ColorUtils.transparentize(Appearance.colors.colLayer1, 0.08)
+
+                                Behavior on color { ColorAnimation { duration: Appearance.animation.elementMoveFast.duration } }
+
+                                layer.enabled: Appearance.effectsEnabled
+                                layer.effect: DropShadow {
+                                    horizontalOffset: 0
+                                    verticalOffset: 2
+                                    radius: 8
+                                    samples: 17
+                                    color: Qt.rgba(0, 0, 0, 0.3)
+                                }
+
+                                MouseArea {
+                                    id: groupMouseArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: groupDelegate.groupCount > 1 ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                    onClicked: {
+                                        if (groupDelegate.groupCount > 1) groupDelegate.expanded = !groupDelegate.expanded
+                                    }
+                                }
+
+                                RowLayout {
+                                    id: groupContent
+                                    anchors {
+                                        left: parent.left; right: parent.right
+                                        verticalCenter: parent.verticalCenter
+                                        margins: 12
+                                    }
+                                    spacing: 10
+
+                                    // App icon
+                                    Item {
+                                        Layout.alignment: Qt.AlignTop
+                                        Layout.preferredWidth: 32
+                                        Layout.preferredHeight: 32
+
+                                        NotificationAppIcon {
+                                            anchors.fill: parent
+                                            appIcon: groupDelegate.latestNotif?.appIcon ?? ""
+                                            image: groupDelegate.latestNotif?.image ?? ""
+                                            summary: groupDelegate.latestNotif?.summary ?? ""
+                                            urgency: groupDelegate.latestNotif?.urgency ?? 0
+                                        }
+
+                                        // Count badge
+                                        Rectangle {
+                                            visible: groupDelegate.groupCount > 1
+                                            anchors {
+                                                right: parent.right
+                                                top: parent.top
+                                                rightMargin: -4
+                                                topMargin: -4
+                                            }
+                                            width: Math.max(16, badgeText.implicitWidth + 6)
+                                            height: 16
+                                            radius: Appearance.rounding.full
+                                            color: Appearance.colors.colPrimary
+                                            z: 1
+
+                                            Text {
+                                                id: badgeText
+                                                anchors.centerIn: parent
+                                                text: groupDelegate.groupCount
+                                                font.pixelSize: 9
+                                                font.weight: Font.Bold
+                                                font.family: Appearance.font.family.numbers
+                                                color: Appearance.colors.colOnPrimary
+                                            }
+                                        }
+                                    }
+
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 2
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            // App name
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: groupDelegate.modelData ?? ""
+                                                font.pixelSize: Appearance.font.pixelSize.smaller
+                                                font.weight: Font.Medium
+                                                font.family: Appearance.font.family.main
+                                                color: Appearance.colors.colOnSurfaceVariant
+                                                elide: Text.ElideRight
+                                                visible: text.length > 0
+                                            }
+
+                                            // Expand indicator
+                                            MaterialSymbol {
+                                                visible: groupDelegate.groupCount > 1
+                                                text: groupDelegate.expanded ? "expand_less" : "expand_more"
+                                                iconSize: 14
+                                                color: Appearance.colors.colOnSurfaceVariant
+                                            }
+                                        }
+
+                                        // Latest notification summary
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: groupDelegate.latestNotif?.summary ?? ""
+                                            font.pixelSize: Appearance.font.pixelSize.small
+                                            font.weight: Font.Medium
+                                            font.family: Appearance.font.family.main
+                                            color: Appearance.colors.colOnSurface
+                                            elide: Text.ElideRight
+                                            maximumLineCount: 1
+                                        }
+
+                                        // Body (optional)
+                                        Text {
+                                            Layout.fillWidth: true
+                                            visible: lockNotificationsLoader.lockNotifShowBody && text.length > 0
+                                            text: groupDelegate.latestNotif?.body ?? ""
+                                            font.pixelSize: Appearance.font.pixelSize.smaller
+                                            font.family: Appearance.font.family.main
+                                            color: Appearance.colors.colOnSurfaceVariant
+                                            elide: Text.ElideRight
+                                            maximumLineCount: 2
+                                            wrapMode: Text.WordWrap
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Expanded notifications
+                            Column {
+                                id: expandedCol
+                                width: parent.width - 16
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                spacing: 3
+                                visible: groupDelegate.expanded
+                                clip: true
+
+                                Repeater {
+                                    model: groupDelegate.expanded ? (groupDelegate.group?.notifications?.slice(1) ?? []) : []
+
+                                    delegate: Rectangle {
+                                        id: expandedCard
+                                        required property var modelData
+                                        width: parent.width
+                                        height: expandedContent.implicitHeight + 10
+                                        radius: Appearance.rounding.small
+                                        color: ColorUtils.transparentize(Appearance.colors.colLayer1, 0.12)
+
+                                        RowLayout {
+                                            id: expandedContent
+                                            anchors {
+                                                left: parent.left; right: parent.right
+                                                verticalCenter: parent.verticalCenter
+                                                margins: 8
+                                            }
+                                            spacing: 8
+
+                                            NotificationAppIcon {
+                                                Layout.alignment: Qt.AlignTop
+                                                Layout.preferredWidth: 22
+                                                Layout.preferredHeight: 22
+                                                appIcon: expandedCard.modelData?.appIcon ?? ""
+                                                image: expandedCard.modelData?.image ?? ""
+                                                summary: expandedCard.modelData?.summary ?? ""
+                                                urgency: expandedCard.modelData?.urgency ?? 0
+                                            }
+
+                                            ColumnLayout {
+                                                Layout.fillWidth: true
+                                                spacing: 1
+
+                                                Text {
+                                                    Layout.fillWidth: true
+                                                    text: expandedCard.modelData?.summary ?? ""
+                                                    font.pixelSize: Appearance.font.pixelSize.smaller
+                                                    font.weight: Font.Medium
+                                                    font.family: Appearance.font.family.main
+                                                    color: Appearance.colors.colOnSurface
+                                                    elide: Text.ElideRight
+                                                    maximumLineCount: 1
+                                                }
+
+                                                Text {
+                                                    Layout.fillWidth: true
+                                                    visible: lockNotificationsLoader.lockNotifShowBody && text.length > 0
+                                                    text: expandedCard.modelData?.body ?? ""
+                                                    font.pixelSize: Appearance.font.pixelSize.smaller
+                                                    font.family: Appearance.font.family.main
+                                                    color: Appearance.colors.colOnSurfaceVariant
+                                                    elide: Text.ElideRight
+                                                    maximumLineCount: 2
+                                                    wrapMode: Text.WordWrap
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Overflow indicator for remaining app groups
+                Text {
+                    visible: Notifications.appNameList.length > lockNotificationsLoader.lockNotifMaxCount
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: "+" + (Notifications.appNameList.length - lockNotificationsLoader.lockNotifMaxCount) + " " + Translation.tr("more")
+                    font.pixelSize: Appearance.font.pixelSize.smaller
+                    font.family: Appearance.font.family.main
+                    color: Appearance.colors.colOnSurfaceVariant
+
+                    layer.enabled: Appearance.effectsEnabled
+                    layer.effect: DropShadow {
+                        horizontalOffset: 0
+                        verticalOffset: 1
+                        radius: 4
+                        samples: 9
+                        color: Qt.rgba(0, 0, 0, 0.3)
+                    }
+                }
             }
         }
         
@@ -981,7 +1522,44 @@ MouseArea {
                     }
                 }
             }
+            
+            // On-screen keyboard toggle
+            LockIconButton {
+                icon: "keyboard"
+                tooltip: Translation.tr("Virtual keyboard")
+                toggled: root.oskVisible
+                anchors.verticalCenter: parent.verticalCenter
+                onClicked: root.oskVisible = !root.oskVisible
+            }
         }
+    }
+
+    // On-screen keyboard
+    LockKeyboard {
+        id: lockKeyboard
+        visible: root.oskVisible
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 80
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: Math.min(parent.width * 0.6, 640)
+
+        onKeyClicked: key => {
+            loginPasswordField.text += key
+            loginPasswordField.forceActiveFocus()
+        }
+        onBackspaceClicked: {
+            if (loginPasswordField.text.length > 0) {
+                loginPasswordField.text = loginPasswordField.text.slice(0, -1)
+            }
+            loginPasswordField.forceActiveFocus()
+        }
+        onEnterClicked: {
+            if (root.context.currentText.length > 0) {
+                root.hasAttemptedUnlock = true
+                root.context.tryUnlock(root.ctrlHeld)
+            }
+        }
+        onCloseRequested: root.oskVisible = false
     }
 
     // ===== INPUT HANDLING =====

@@ -184,7 +184,7 @@ Item {
                     anchors.margins: 6
                     width: 24
                     height: 16
-                    radius: 4
+                    radius: Appearance.rounding.unsharpen
                     color: ColorUtils.transparentize(root.colBg, 0.4)
                     visible: root.isPlaying && !YtMusic.loading
 
@@ -303,7 +303,7 @@ Item {
                         colBackground: "transparent"
                         colBackgroundHover: root.colLayer2
                         onClicked: YtMusic.togglePlaying()
-                        Behavior on buttonRadius { enabled: Appearance.animationsEnabled; NumberAnimation { duration: 150 } }
+                        Behavior on buttonRadius { enabled: Appearance.animationsEnabled; NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve } }
                         contentItem: MaterialSymbol { 
                             anchors.centerIn: parent
                             text: root.isPlaying ? "pause" : "play_arrow"

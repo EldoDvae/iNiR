@@ -41,7 +41,7 @@ Button {
                 : "transparent")
 
         Behavior on color {
-            ColorAnimation { duration: 150 }
+            ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
         }
     }
 
@@ -166,7 +166,8 @@ Button {
                 smooth: true
 
                 Behavior on opacity {
-                    NumberAnimation { duration: 200; easing.type: Easing.OutQuad }
+                    enabled: Appearance.animationsEnabled
+                    NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                 }
             }
 
@@ -182,7 +183,8 @@ Button {
                 opacity: status === Image.Ready ? 1 : 0
 
                 Behavior on opacity {
-                    NumberAnimation { duration: 200; easing.type: Easing.OutQuad }
+                    enabled: Appearance.animationsEnabled
+                    NumberAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
                 }
 
                 layer.enabled: true

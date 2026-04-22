@@ -8,6 +8,7 @@ import qs.modules.mediaControls
 import qs.modules.notificationPopup
 import qs.modules.onScreenDisplay
 import qs.modules.onScreenKeyboard
+import qs.modules.recordingOsd
 import qs.modules.overview
 import qs.modules.polkit
 import qs.modules.regionSelector
@@ -75,6 +76,7 @@ Item {
     DeferredPanelLoader { identifier: "iiCoverflowSelector"; component: WallpaperCoverflow {} }
     DeferredPanelLoader { identifier: "iiClipboard"; component: ClipboardModule.ClipboardPanel {} }
     DeferredPanelLoader { identifier: "iiShellUpdate"; component: ShellUpdateOverlay {} }
+    DeferredPanelLoader { identifier: "iiRecordingOsd"; component: RecordingOsd {} }
 
     LazyLoader {
         active: Config.ready && (Config.options?.background?.effects?.ripple?.enable ?? false)

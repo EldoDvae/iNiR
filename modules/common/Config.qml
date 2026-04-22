@@ -881,6 +881,23 @@ Singleton {
                 }
                 property bool materialShapeChars: true
                 property bool enableAnimation: false // Play video/GIF wallpapers on lock screen (default: show first frame)
+                property JsonObject dim: JsonObject {
+                    property bool enable: false
+                    property real opacity: 0.3 // 0.0 = no dim, 1.0 = full black
+                }
+                property JsonObject clock: JsonObject {
+                    property string style: "default" // "default", "minimal", "analog"
+                    property string position: "center" // "center", "topLeft", "bottomLeft"
+                }
+                property JsonObject notifications: JsonObject {
+                    property bool enable: false
+                    property int maxCount: 3
+                    property bool showBody: true
+                    property string position: "auto" // "auto" (center ii, right waffle), "center", "left", "right"
+                }
+                property JsonObject status: JsonObject {
+                    property bool enable: true
+                }
             }
 
             property JsonObject media: JsonObject {
@@ -1361,6 +1378,8 @@ Singleton {
             }
 
             property JsonObject screenRecord: JsonObject {
+                property bool showOsd: false
+                property bool showNotifications: true
                 property string savePath: "" // Empty = use XDG Videos or ~/Videos
                 property string qualityPreset: "balanced"
                 property string videoCodec: "libx264"

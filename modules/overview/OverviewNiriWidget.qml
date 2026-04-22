@@ -377,9 +377,11 @@ Item {
                                 bottomLeftRadius: workspace.bottomLeftRadius
                                 bottomRightRadius: workspace.bottomRightRadius
                                 Behavior on opacity {
+                                    enabled: Appearance.animationsEnabled
                                     NumberAnimation {
-                                        duration: 140
-                                        easing.type: Easing.InOutQuad
+                                        duration: Appearance.animation.elementMoveFast.duration
+                                        easing.type: Appearance.animation.elementMoveFast.type
+                                        easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve
                                     }
                                 }
                             }
@@ -611,17 +613,19 @@ Item {
                     z: root.windowZ
 
                     Behavior on x {
-                        enabled: !windowItem.Drag.active
+                        enabled: !windowItem.Drag.active && Appearance.animationsEnabled
                         NumberAnimation {
-                            duration: 140
-                            easing.type: Easing.InOutQuad
+                            duration: Appearance.animation.elementMoveFast.duration
+                            easing.type: Appearance.animation.elementMoveFast.type
+                            easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve
                         }
                     }
                     Behavior on y {
-                        enabled: !windowItem.Drag.active
+                        enabled: !windowItem.Drag.active && Appearance.animationsEnabled
                         NumberAnimation {
-                            duration: 140
-                            easing.type: Easing.InOutQuad
+                            duration: Appearance.animation.elementMoveFast.duration
+                            easing.type: Appearance.animation.elementMoveFast.type
+                            easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve
                         }
                     }
 
@@ -690,7 +694,12 @@ Item {
                             opacity: status === Image.Ready ? 1 : 0
 
                             Behavior on opacity {
-                                NumberAnimation { duration: 150; easing.type: Easing.OutQuad }
+                                enabled: Appearance.animationsEnabled
+                                NumberAnimation { 
+                                    duration: Appearance.animation.elementMoveFast.duration
+                                    easing.type: Appearance.animation.elementMoveFast.type
+                                    easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve
+                                }
                             }
 
                             // Listen for preview updates
@@ -736,9 +745,11 @@ Item {
                             visible: !windowPreview.visible
                             scale: windowItem.hovered ? 1.08 : 1.0
                             Behavior on scale {
+                                enabled: Appearance.animationsEnabled
                                 NumberAnimation {
-                                    duration: 120
-                                    easing.type: Easing.InOutQuad
+                                    duration: Appearance.animation.elementMoveFast.duration
+                                    easing.type: Appearance.animation.elementMoveFast.type
+                                    easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve
                                 }
                             }
                         }
@@ -920,7 +931,7 @@ Item {
                 border.color: root.activeBorderColor
 
                 Behavior on x {
-                    enabled: root.focusAnimEnabled
+                    enabled: root.focusAnimEnabled && Appearance.animationsEnabled
                     animation: NumberAnimation {
                         duration: root.focusAnimDuration
                         easing.type: Appearance.animation.elementMoveFast.type
@@ -928,7 +939,7 @@ Item {
                     }
                 }
                 Behavior on y {
-                    enabled: root.focusAnimEnabled
+                    enabled: root.focusAnimEnabled && Appearance.animationsEnabled
                     animation: NumberAnimation {
                         duration: root.focusAnimDuration
                         easing.type: Appearance.animation.elementMoveFast.type
@@ -936,7 +947,7 @@ Item {
                     }
                 }
                 Behavior on topLeftRadius {
-                    enabled: root.focusAnimEnabled
+                    enabled: root.focusAnimEnabled && Appearance.animationsEnabled
                     animation: NumberAnimation {
                         duration: root.focusAnimDuration
                         easing.type: Appearance.animation.elementMoveEnter.type
@@ -944,7 +955,7 @@ Item {
                     }
                 }
                 Behavior on topRightRadius {
-                    enabled: root.focusAnimEnabled
+                    enabled: root.focusAnimEnabled && Appearance.animationsEnabled
                     animation: NumberAnimation {
                         duration: root.focusAnimDuration
                         easing.type: Appearance.animation.elementMoveEnter.type
@@ -952,7 +963,7 @@ Item {
                     }
                 }
                 Behavior on bottomLeftRadius {
-                    enabled: root.focusAnimEnabled
+                    enabled: root.focusAnimEnabled && Appearance.animationsEnabled
                     animation: NumberAnimation {
                         duration: root.focusAnimDuration
                         easing.type: Appearance.animation.elementMoveEnter.type
@@ -960,7 +971,7 @@ Item {
                     }
                 }
                 Behavior on bottomRightRadius {
-                    enabled: root.focusAnimEnabled
+                    enabled: root.focusAnimEnabled && Appearance.animationsEnabled
                     animation: NumberAnimation {
                         duration: root.focusAnimDuration
                         easing.type: Appearance.animation.elementMoveEnter.type
