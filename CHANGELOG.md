@@ -23,6 +23,7 @@ Hotfix round. Half the install pipeline was quietly broken and nobody noticed be
 - **Bar resources freezing after 15s**: ResourceUsage auto-stops polling after 15s. The bar never renewed its subscription, so CPU/RAM/temp went stale until you opened a sidebar. Persistent panels now use `keepAlive()`/`releaseKeepAlive()`.
 - **Doctor launching duplicate shell**: symlink path vs resolved path mismatch in `qs -p` calls. Now resolves symlinks first.
 - **VSCode/Cursor/OpenCode theming broken**: orphaned `strip_neovim_spec()` referencing undefined variable crashed the editors module with `set -euo pipefail`, killing all editor theming.
+- **Phantom dock icons for uninstalled apps**: pinned apps with no `.desktop` file (e.g. Firefox on Fedora) no longer show ghost icons. The pin stays in config so the icon comes back if you install the app later.
 
 ## [2.22.0] - 2026-04-21
 
