@@ -243,8 +243,26 @@ ensure_user_inir_service_enabled() {
         return 1
     fi
 
+    # Detect the compositor service — never fall back to graphical-session.target
+    # because that target is active in KDE/GNOME/etc.
+    local target=""
+    if systemctl --user cat niri.service &>/dev/null; then
+        target="niri.service"
+    elif systemctl --user cat 'wayland-wm@Hyprland.service' &>/dev/null; then
+        target="wayland-wm@Hyprland.service"
+    fi
+
+    if [[ -z "$target" ]]; then
+        return 1  # no compositor found — don't enable
+    fi
+
+    local wants_dir="${XDG_CONFIG_HOME}/systemd/user/${target}.wants"
+    if [[ ! -e "$wants_dir/inir.service" ]]; then
+        mkdir -p "$wants_dir"
+        ln -sf "$service_path" "$wants_dir/inir.service"
+    fi
+
     systemctl --user daemon-reload >/dev/null 2>&1 || true
-    systemctl --user enable inir.service >/dev/null 2>&1 || true
     return 0
 }
 
@@ -1514,7 +1532,9 @@ run_update() {
         fi
 
         ensure_user_inir_service_enabled >/dev/null 2>&1 || true
-        if [[ -n "${NIRI_SOCKET:-}" || -n "${WAYLAND_DISPLAY:-}" ]]; then
+        # Only start inir if we're running under a supported compositor.
+        # WAYLAND_DISPLAY alone is not enough — KDE/GNOME set it too.
+        if [[ -n "${NIRI_SOCKET:-}" ]] || pgrep -x niri &>/dev/null || pgrep -x Hyprland &>/dev/null; then
             systemctl --user reset-failed inir.service >/dev/null 2>&1 || true
             systemctl --user start inir.service >/dev/null 2>&1 || true
         fi
