@@ -7,7 +7,6 @@ import QtQuick.Controls
 /**
  * Material 3 styled TextField (filled style)
  * https://m3.material.io/components/text-fields/overview
- * Note: We don't use NativeRendering because it makes the small placeholder text look weird
  */
 TextField {
     id: root
@@ -17,7 +16,7 @@ TextField {
     Material.background: Appearance.m3colors.m3surface
     Material.foreground: Appearance.m3colors.m3onSurface
     Material.containerStyle: Material.Outlined
-    renderType: Text.QtRendering
+    renderType: Text.NativeRendering
 
     // Settings search integration
     property bool enableSettingsSearch: true
@@ -104,5 +103,9 @@ TextField {
         acceptedButtons: Qt.NoButton
         hoverEnabled: true
         cursorShape: Qt.IBeamCursor
+    }
+
+    TextInputContextMenu {
+        target: root
     }
 }

@@ -1070,6 +1070,7 @@ ColumnLayout {
                         id: presetSearchField
                         Layout.fillWidth: true
                         placeholderText: Translation.tr("Search presets...")
+                        renderType: Text.NativeRendering
                         font.pixelSize: Appearance.font.pixelSize.small
                         background: Rectangle {
                             color: Appearance.colors.colLayer1
@@ -1332,6 +1333,7 @@ ColumnLayout {
                         id: exportTextArea
                         readOnly: true
                         text: JSON.stringify(Config.options.appearance.customTheme, null, 2)
+                        renderType: Text.NativeRendering
                         font.family: Appearance.font.family.monospace
                         font.pixelSize: Appearance.font.pixelSize.smallest
                         color: Appearance.colors.colOnLayer2
@@ -1456,6 +1458,7 @@ ColumnLayout {
                     TextArea {
                         id: importTextArea
                         placeholderText: Translation.tr("Paste theme JSON here...")
+                        renderType: Text.NativeRendering
                         font.family: Appearance.font.family.monospace
                         font.pixelSize: Appearance.font.pixelSize.smallest
                         color: Appearance.colors.colOnLayer2

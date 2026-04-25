@@ -5,6 +5,35 @@ All notable changes to iNiR will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.23.0] - 2026-04-25
+
+Calendar sync landed, the wiki got a proper bulk update, YT Music stopped being weird about pasted URLs, and text inputs finally learned the ancient art of right click.
+
+### Added
+- **Calendar sync across the shell**: external ICS/iCal feeds now have a real runtime path instead of "maybe someday". Added `CalendarSync` service, pure-JS ICS parsing, cache/state wiring, ii calendar day-detail view, waffle calendar event integration, merged external events in the Events tab, and settings UI for both panel families.
+- **Bigger docs pass**: added a proper wiki/doc set for architecture, runtime, modules, services, panel families, wallpaper, theming presets, audio/media, autostart, global actions, and compositor behavior. Also added dedicated calendar integration docs.
+- **YT Music URL flow that behaves like a normal app**: pasted YouTube, YouTube Music, and Spotify URLs now resolve inline in the sidebar instead of silently doing random background stuff. Single tracks get metadata before playback, playlists populate visible results, and direct music.youtube links resolve correctly.
+- **Text input context menus**: shared right-click menus now exist for the shell's text fields and text areas across settings, ii widgets, waffle text fields, and the YT Music sidebar. Undo/redo/cut/copy/paste/select-all, no mystery meat.
+
+### Fixed
+- **Arch install dependency drift** *(#128)*: `eza` is now included in the Arch dependency lists, so the default alias setup stops pointing users at a command that was never installed.
+- **Updater stuck forever on "Updating..."** *(#129)*: early-success paths now write success state before returning, so package-managed or already-updated installs stop pretending they're still mid-flight.
+- **Chrome policy spam on Linux** *(#131)*: dropped the unsupported `BrowserColorScheme` enterprise policy instead of feeding Chrome a setting it just rejects.
+- **SDDM on Qt 6** *(#127)*: switched the theme import to use `qt5compat`, which is what SDDM actually expects in that environment.
+- **YT Music related-mix queue race**: related mixes now ignore stale resolver output from the previous track instead of quietly building the next playlist from the wrong song.
+- **Shared text input i18n regression**: the new context menu labels now go through `Translation.tr()` instead of hardcoding English inside a common widget.
+
+### Changed
+- **Release hygiene**: versioned project metadata was bumped together across docs, Arch packaging, and installer fallback paths.
+- **Release helper script**: added `scripts/release.sh` to extract notes from `CHANGELOG.md` and drive the tag/release step without hand-copying markdown every time.
+
+### Contributors
+Thanks to [@neotesk](https://github.com/neotesk) for the Qt 6 / SDDM compatibility fix in [#127](https://github.com/snowarch/iNiR/pull/127).
+
+### Issues / PRs
+- Fixed [#128](https://github.com/snowarch/iNiR/issues/128), [#129](https://github.com/snowarch/iNiR/issues/129), and [#131](https://github.com/snowarch/iNiR/issues/131).
+- Included contribution from [#127](https://github.com/snowarch/iNiR/pull/127).
+
 ## [2.22.1] - 2026-04-22
 
 Hotfix round. Half the install pipeline was quietly broken and nobody noticed because existing users don't re-install. Fresh CachyOS users noticed though — loudly.

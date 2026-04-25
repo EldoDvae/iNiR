@@ -92,6 +92,7 @@ Item {
                 id: searchField
                 Layout.fillWidth: true
                 placeholderText: "Search fonts..."
+                renderType: Text.NativeRendering
                 font.pixelSize: Appearance.font.pixelSize.small
                 background: Rectangle {
                     color: Appearance.colors.colLayer1

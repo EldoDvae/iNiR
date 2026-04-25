@@ -41,15 +41,56 @@ Item {
         function onEventRemoved(id) { root._eventsTrigger++ }
         function onEventUpdated(event) { root._eventsTrigger++ }
     }
-    
-    // Computed properties that react to events changes via trigger
-    readonly property var upcomingEvents: {
-        const _t = root._eventsTrigger // force dependency
-        return Events.getUpcomingEvents(30)
+    property int _externalTrigger: 0
+    Connections {
+        target: CalendarSync
+        function onEventsUpdated() { root._externalTrigger++ }
     }
+    
+    // Merged events: local + external, sorted by date
+    readonly property var mergedEvents: {
+        const _t = root._eventsTrigger
+        const _t2 = root._externalTrigger
+        return _buildMergedEvents()
+    }
+
+    function _buildMergedEvents(): var {
+        const local = Events.getUpcomingEvents(30).map(e => Object.assign({}, e, {
+            _source: "local"
+        }))
+
+        // Get external events for the next 30 days
+        const now = new Date()
+        now.setHours(0, 0, 0, 0)
+        const externalAll = []
+        for (let i = 0; i < 30; i++) {
+            const d = new Date(now)
+            d.setDate(d.getDate() + i)
+            const dayEvents = CalendarSync.getEventsForDate(d) || []
+            for (const e of dayEvents) {
+                externalAll.push(Object.assign({}, e, {
+                    _source: "external",
+                    dateTime: e.startDate || e.dateTime,
+                    // Map external fields for EventCard compatibility
+                    category: "general",
+                    priority: "normal"
+                }))
+            }
+        }
+
+        const all = local.concat(externalAll)
+        all.sort((a, b) => {
+            const da = new Date(a.dateTime || a.startDate)
+            const db = new Date(b.dateTime || b.startDate)
+            return da - db
+        })
+        return all
+    }
+
     readonly property int upcomingCount: {
-        const _t = root._eventsTrigger // force dependency
-        return Events.getUpcomingEvents(7).length
+        const _t = root._eventsTrigger
+        const _t2 = root._externalTrigger
+        return root.mergedEvents.length
     }
     
     ColumnLayout {
@@ -112,18 +153,23 @@ Item {
                 width: parent.width
                 spacing: 8
                 
-                // Upcoming events
+                // Merged events
                 Repeater {
-                    model: root.upcomingEvents
+                    model: root.mergedEvents
                     
                     delegate: EventCard {
                         required property var modelData
                         Layout.fillWidth: true
                         Layout.margins: 8
                         event: modelData
+                        isExternal: (modelData?._source ?? "local") === "external"
                         
-                        onRemoveClicked: Events.removeEvent(modelData.id)
-                        onEditClicked: (evt) => root.openEventsDialog(evt)
+                        onRemoveClicked: {
+                            if (!isExternal) Events.removeEvent(modelData.id)
+                        }
+                        onEditClicked: (evt) => {
+                            if (!isExternal) root.openEventsDialog(evt)
+                        }
                     }
                 }
                 
@@ -132,7 +178,7 @@ Item {
                     id: emptyState
                     Layout.fillWidth: true
                     Layout.preferredHeight: 200
-                    visible: root.upcomingEvents.length === 0
+                    visible: root.mergedEvents.length === 0
                     
                     ColumnLayout {
                         anchors.centerIn: parent

@@ -1552,6 +1552,7 @@ run_update() {
 
         echo ""
         tui_success "Package-managed installation left unchanged"
+        echo "success" > "$_update_status_file" 2>/dev/null || true
         return 0
     fi
 
@@ -1626,6 +1627,7 @@ run_update() {
             tui_info "Detected existing installation without version tracking"
         elif [[ "$installed_commit" == "$repo_commit" ]]; then
             tui_success "Already up to date ($installed_ver)"
+            echo "success" > "$_update_status_file" 2>/dev/null || true
 
             local pending=$(count_pending_migrations)
             if [[ "$pending" -gt 0 ]]; then

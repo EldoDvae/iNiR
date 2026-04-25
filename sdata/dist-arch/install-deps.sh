@@ -273,6 +273,7 @@ OFFICIAL_PACKAGES=(
   cliphist
   gum
   starship
+  eza
   xwayland-satellite
   
   # Emoji font (CRITICAL — overview search, notifications, etc.)
@@ -454,7 +455,7 @@ tui_info "Registering dependencies with pacman..."
 _meta_dir="./sdata/dist-arch/inir-deps"
 if [[ -f "$_meta_dir/PKGBUILD" ]]; then
   # Update pkgver from VERSION file
-  _inir_ver="$(cat ./VERSION 2>/dev/null || echo '2.22.1')"
+  _inir_ver="$(cat ./VERSION 2>/dev/null || echo '2.23.0')"
   sed -i "s/^pkgver=.*/pkgver=${_inir_ver}/" "$_meta_dir/PKGBUILD"
 
   (

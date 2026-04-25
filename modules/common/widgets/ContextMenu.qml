@@ -204,6 +204,8 @@ Loader {
                                 Layout.fillWidth: true
 
                                 required property var modelData
+                                enabled: modelData.enabled !== false
+                                opacity: enabled ? 1 : 0.45
 
                                 implicitWidth: Math.max(140, menuRow.implicitWidth + 20)
                                 implicitHeight: 32
@@ -223,6 +225,7 @@ Loader {
                                         : ColorUtils.transparentize(Appearance.colors.colPrimary, 0.7)
 
                                 onClicked: {
+                                    if (!enabled) return;
                                     if (modelData.action) modelData.action();
                                     root.close();
                                 }

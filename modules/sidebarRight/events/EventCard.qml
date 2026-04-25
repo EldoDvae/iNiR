@@ -12,6 +12,7 @@ Item {
     id: root
     
     required property var event
+    property bool isExternal: false
     signal removeClicked()
     signal editClicked(var event)
     
@@ -32,20 +33,22 @@ Item {
         : Appearance.auroraEverywhere ? (Appearance.aurora?.colSubSurface ?? Appearance.colors.colLayer2)
         : Appearance.colors.colLayer2
 
-    readonly property color priorityColor: {
+    // Source color for external events, priority color for local
+    readonly property color indicatorColor: {
+        if (root.isExternal) return root.event?.sourceColor ?? root.colPrimary
         switch (root.event?.priority ?? "normal") {
             case "high": return root.colError
             case "low": return root.colSubtext
             default: return root.colPrimary
         }
     }
-    readonly property date eventDate: new Date(event.dateTime)
+    readonly property date eventDate: new Date(event.dateTime || event.startDate || "")
     readonly property bool isToday: {
         const now = new Date()
-        const evtDate = new Date(event.dateTime)
-        return now.toDateString() === evtDate.toDateString()
+        return now.toDateString() === root.eventDate.toDateString()
     }
-    readonly property bool isPast: new Date(event.dateTime) < new Date()
+    readonly property bool isAllDay: root.event?.allDay ?? false
+    readonly property bool isPast: root.eventDate < new Date()
     
     StyledRectangularShadow {
         target: cardBg
@@ -59,7 +62,7 @@ Item {
             : Appearance.inirEverywhere ? Appearance.inir.roundingSmall
             : Appearance.rounding.small
         color: {
-            if (editMA.containsMouse) {
+            if (editMA.containsMouse && !root.isExternal) {
                 if (Appearance.angelEverywhere) return Appearance.angel.colGlassCardHover
                 if (Appearance.inirEverywhere) return Appearance.inir.colLayer1Hover
                 if (Appearance.auroraEverywhere) return Appearance.aurora?.colSubSurface ?? Appearance.colors.colLayer1Hover
@@ -78,14 +81,14 @@ Item {
             animation: ColorAnimation { duration: Appearance.animation.elementMoveFast.duration; easing.type: Appearance.animation.elementMoveFast.type; easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve }
         }
         
-        // Priority indicator bar
+        // Indicator bar (source color for external, priority for local)
         Rectangle {
             anchors.left: parent.left
             anchors.top: parent.top
             anchors.bottom: parent.bottom
             width: 4
             radius: parent.radius
-            color: root.priorityColor
+            color: root.indicatorColor
         }
         
         RowLayout {
@@ -95,18 +98,18 @@ Item {
             anchors.leftMargin: 16
             spacing: 12
             
-            // Category icon
+            // Category / source icon
             Rectangle {
                 Layout.preferredWidth: 40
                 Layout.preferredHeight: 40
                 radius: 20
-                color: ColorUtils.transparentize(root.priorityColor, 0.85)
+                color: ColorUtils.transparentize(root.indicatorColor, 0.85)
                 
                 MaterialSymbol {
                     anchors.centerIn: parent
-                    text: Events.getCategoryIcon(root.event.category)
+                    text: root.isExternal ? "cloud_sync" : Events.getCategoryIcon(root.event.category)
                     iconSize: 20
-                    color: root.priorityColor
+                    color: root.indicatorColor
                 }
             }
             
@@ -117,23 +120,23 @@ Item {
                 
                 StyledText {
                     Layout.fillWidth: true
-                    text: root.event.title
+                    text: root.event?.title ?? ""
                     font.pixelSize: Appearance.font.pixelSize.normal
                     font.weight: Font.Medium
-                    color: Appearance.inirEverywhere ? Appearance.inir.colText
-                        : Appearance.angelEverywhere ? Appearance.angel.colText
-                        : Appearance.colors.colOnLayer1
+                    color: root.colText
                     elide: Text.ElideRight
                 }
                 
+                // Description or location
                 StyledText {
                     Layout.fillWidth: true
-                    visible: root.event.description && root.event.description !== ""
-                    text: root.event.description
+                    visible: text !== ""
+                    text: {
+                        if (root.isExternal) return root.event?.location ?? root.event?.description ?? ""
+                        return root.event?.description ?? ""
+                    }
                     font.pixelSize: Appearance.font.pixelSize.small
-                    color: Appearance.inirEverywhere ? Appearance.inir.colTextSecondary
-                        : Appearance.angelEverywhere ? Appearance.angel.colTextSecondary
-                        : Appearance.colors.colSubtext
+                    color: root.colSubtext
                     elide: Text.ElideRight
                     maximumLineCount: 2
                     wrapMode: Text.WordWrap
@@ -164,6 +167,7 @@ Item {
                             
                             StyledText {
                                 text: {
+                                    if (root.isAllDay) return Translation.tr("All day")
                                     if (root.isToday) return Translation.tr("Today") + " " + Qt.formatTime(root.eventDate, "HH:mm")
                                     const now = new Date()
                                     const tomorrow = new Date(now)
@@ -180,18 +184,21 @@ Item {
                         }
                     }
                     
-                    // Category badge
+                    // Source / category badge
                     Rectangle {
                         implicitHeight: categoryText.implicitHeight + 6
                         implicitWidth: categoryText.implicitWidth + 12
                         radius: height / 2
-                        color: root.colBadge
+                        color: root.isExternal
+                            ? ColorUtils.transparentize(root.indicatorColor, 0.85)
+                            : root.colBadge
                         
                         StyledText {
                             id: categoryText
                             anchors.centerIn: parent
                             text: {
-                                switch (root.event.category) {
+                                if (root.isExternal) return root.event?.sourceName ?? Translation.tr("External")
+                                switch (root.event?.category ?? "general") {
                                     case "birthday": return Translation.tr("Birthday")
                                     case "meeting": return Translation.tr("Meeting")
                                     case "deadline": return Translation.tr("Deadline")
@@ -200,17 +207,18 @@ Item {
                                 }
                             }
                             font.pixelSize: Appearance.font.pixelSize.smallest
-                            color: root.colSubtext
+                            color: root.isExternal ? root.indicatorColor : root.colSubtext
                         }
                     }
                 }
             }
             
-            // Remove button
+            // Remove button (local events only)
             RippleButton {
                 Layout.preferredWidth: 32
                 Layout.preferredHeight: 32
                 buttonRadius: 16
+                visible: !root.isExternal
                 colBackground: "transparent"
                 colBackgroundHover: Appearance.angelEverywhere ? Appearance.angel.colGlassCardHover
                     : Appearance.inirEverywhere ? Appearance.inir.colLayer2Hover
@@ -235,14 +243,16 @@ Item {
             visible: Appearance.angelEverywhere
         }
         
-        // Click to edit
+        // Click to edit (local only)
         MouseArea {
             id: editMA
             anchors.fill: parent
             z: -1
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: root.editClicked(root.event)
+            hoverEnabled: !root.isExternal
+            cursorShape: root.isExternal ? Qt.ArrowCursor : Qt.PointingHandCursor
+            onClicked: {
+                if (!root.isExternal) root.editClicked(root.event)
+            }
         }
     }
 }

@@ -115,6 +115,7 @@ Toolbar 1.0 Toolbar.qml
 ToolbarTabBar 1.0 ToolbarTabBar.qml
 ToolbarTabButton 1.0 ToolbarTabButton.qml
 ToolbarTextField 1.0 ToolbarTextField.qml
+TextInputContextMenu 1.0 TextInputContextMenu.qml
 VerticalButtonGroup 1.0 VerticalButtonGroup.qml
 WaveVisualizer 1.0 WaveVisualizer.qml
 WavyLine 1.0 WavyLine.qml

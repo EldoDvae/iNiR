@@ -155,6 +155,7 @@ Item {
                     id: textArea
                     width: scrollView.availableWidth
                     wrapMode: TextArea.Wrap
+                    renderType: Text.NativeRendering
                     font.pixelSize: Appearance.inirEverywhere ? Appearance.font.pixelSize.smaller : Appearance.font.pixelSize.small
                     color: Appearance.inirEverywhere ? Appearance.inir.colText : Appearance.colors.colOnLayer0
                     placeholderText: Translation.tr("Write your notes here...")

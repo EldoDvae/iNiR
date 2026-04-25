@@ -6,7 +6,6 @@ import QtQuick.Controls
 /**
  * Material 3 styled TextArea (filled style)
  * https://m3.material.io/components/text-fields/overview
- * Note: We don't use NativeRendering because it makes the small placeholder text look weird
  */
 TextArea {
     id: root
@@ -16,7 +15,7 @@ TextArea {
     Material.background: Appearance.m3colors.m3surface
     Material.foreground: Appearance.m3colors.m3onSurface
     Material.containerStyle: Material.Filled
-    renderType: Text.QtRendering
+    renderType: Text.NativeRendering
 
     // Integración con buscador global de Settings
     property bool enableSettingsSearch: true
@@ -116,4 +115,8 @@ TextArea {
         variableAxes: Appearance.font.variableAxes.main
     }
     wrapMode: TextEdit.Wrap
+
+    TextInputContextMenu {
+        target: root
+    }
 }

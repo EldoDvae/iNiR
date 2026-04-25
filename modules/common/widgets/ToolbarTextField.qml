@@ -30,4 +30,8 @@ TextField {
         color: Appearance.colors.colLayer1
         radius: Appearance.rounding.full
     }
+
+    TextInputContextMenu {
+        target: filterField
+    }
 }

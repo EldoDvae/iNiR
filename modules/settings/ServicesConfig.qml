@@ -989,4 +989,419 @@ ContentPage {
         }
     }
 
+    SettingsCardSection {
+        icon: "calendar_month"
+        title: Translation.tr("Calendar Sync")
+
+        SettingsGroup {
+            SettingsSwitch {
+                buttonIcon: "sync"
+                text: Translation.tr("Enable external calendar sync")
+                checked: Config.options?.calendar?.externalSync?.enable ?? false
+                onCheckedChanged: Config.setNestedValue("calendar.externalSync.enable", checked)
+            }
+
+            ConfigSpinBox {
+                icon: "update"
+                text: Translation.tr("Refresh interval (minutes)")
+                value: Config.options?.calendar?.externalSync?.refreshMinutes ?? 15
+                from: 5
+                to: 120
+                stepSize: 5
+                onValueChanged: Config.setNestedValue("calendar.externalSync.refreshMinutes", value)
+                enabled: Config.options?.calendar?.externalSync?.enable ?? false
+            }
+
+            SettingsSwitch {
+                buttonIcon: "event"
+                text: Translation.tr("Show upcoming events below calendar")
+                checked: Config.options?.calendar?.showUpcoming ?? true
+                onCheckedChanged: Config.setNestedValue("calendar.showUpcoming", checked)
+            }
+
+            ConfigSpinBox {
+                icon: "date_range"
+                text: Translation.tr("Upcoming days to show")
+                value: Config.options?.calendar?.upcomingDays ?? 3
+                from: 1
+                to: 14
+                stepSize: 1
+                onValueChanged: Config.setNestedValue("calendar.upcomingDays", value)
+            }
+        }
+
+        // Calendar source list
+        SettingsGroup {
+            visible: Config.options?.calendar?.externalSync?.enable ?? false
+
+            // Section header for sources
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: 4
+                Layout.rightMargin: 4
+                Layout.bottomMargin: 4
+
+                StyledText {
+                    Layout.fillWidth: true
+                    text: Translation.tr("Calendar Sources")
+                    font.pixelSize: Appearance.font.pixelSize.normal
+                    font.weight: Font.Medium
+                    color: Appearance.colors.colOnLayer1
+                }
+
+                RippleButton {
+                    implicitWidth: addRow.implicitWidth + 16
+                    implicitHeight: 32
+                    buttonRadius: Appearance.rounding.small
+                    colBackground: ColorUtils.transparentize(Appearance.colors.colPrimary, 0.88)
+                    colBackgroundHover: ColorUtils.transparentize(Appearance.colors.colPrimary, 0.80)
+                    onClicked: addSourceForm.expanded = true
+
+                    contentItem: RowLayout {
+                        id: addRow
+                        anchors.centerIn: parent
+                        spacing: 4
+
+                        MaterialSymbol {
+                            text: "add"
+                            iconSize: 16
+                            color: Appearance.colors.colPrimary
+                        }
+                        StyledText {
+                            text: Translation.tr("Add")
+                            font.pixelSize: Appearance.font.pixelSize.small
+                            font.weight: Font.Medium
+                            color: Appearance.colors.colPrimary
+                        }
+                    }
+                }
+            }
+
+            // Source list
+            Repeater {
+                model: Config.options?.calendar?.externalSync?.sources ?? []
+
+                delegate: Item {
+                    id: sourceItem
+                    required property var modelData
+                    required property int index
+                    Layout.fillWidth: true
+                    implicitHeight: sourceRow.implicitHeight + 12
+
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: Appearance.rounding.small
+                        color: sourceMA.containsMouse ? Appearance.colors.colLayer1Hover : "transparent"
+                        Behavior on color { ColorAnimation { duration: Appearance.animation.elementMoveFast.duration } }
+
+                        RowLayout {
+                            id: sourceRow
+                            anchors.fill: parent
+                            anchors.margins: 8
+                            spacing: 10
+
+                            // Color dot
+                            Rectangle {
+                                Layout.preferredWidth: 12
+                                Layout.preferredHeight: 12
+                                radius: 6
+                                color: sourceItem.modelData?.color ?? Appearance.colors.colPrimary
+                            }
+
+                            // Name and URL
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 1
+
+                                StyledText {
+                                    Layout.fillWidth: true
+                                    text: sourceItem.modelData?.name ?? Translation.tr("Unnamed")
+                                    font.pixelSize: Appearance.font.pixelSize.normal
+                                    color: Appearance.colors.colOnLayer1
+                                    elide: Text.ElideRight
+                                }
+
+                                StyledText {
+                                    Layout.fillWidth: true
+                                    text: sourceItem.modelData?.url ?? ""
+                                    font.pixelSize: Appearance.font.pixelSize.smallest
+                                    color: Appearance.colors.colSubtext
+                                    elide: Text.ElideMiddle
+                                }
+                            }
+
+                            // Status indicator
+                            MaterialSymbol {
+                                visible: {
+                                    const st = CalendarSync.sourceStatuses?.[sourceItem.modelData?.id]
+                                    return st?.error && st.error !== ""
+                                }
+                                text: "error"
+                                iconSize: 16
+                                color: Appearance.m3colors.m3error
+
+                                StyledToolTip {
+                                    text: CalendarSync.sourceStatuses?.[sourceItem.modelData?.id]?.error ?? ""
+                                }
+                            }
+
+                            // Toggle enabled
+                            Switch {
+                                checked: sourceItem.modelData?.enabled ?? true
+                                onCheckedChanged: {
+                                    if (checked !== (sourceItem.modelData?.enabled ?? true)) {
+                                        CalendarSync.toggleSource(sourceItem.modelData.id, checked)
+                                    }
+                                }
+                            }
+
+                            // Remove button
+                            RippleButton {
+                                implicitWidth: 28
+                                implicitHeight: 28
+                                buttonRadius: 14
+                                colBackground: "transparent"
+                                colBackgroundHover: Appearance.colors.colLayer1Hover
+                                onClicked: CalendarSync.removeSource(sourceItem.modelData.id)
+
+                                contentItem: MaterialSymbol {
+                                    anchors.centerIn: parent
+                                    text: "close"
+                                    iconSize: 14
+                                    color: Appearance.colors.colSubtext
+                                }
+
+                                StyledToolTip {
+                                    text: Translation.tr("Remove")
+                                }
+                            }
+                        }
+
+                        MouseArea {
+                            id: sourceMA
+                            anchors.fill: parent
+                            z: -1
+                            hoverEnabled: true
+                        }
+                    }
+                }
+            }
+
+            // Empty state
+            StyledText {
+                visible: (Config.options?.calendar?.externalSync?.sources ?? []).length === 0
+                Layout.alignment: Qt.AlignHCenter
+                Layout.topMargin: 8
+                Layout.bottomMargin: 8
+                text: Translation.tr("No calendar sources added yet")
+                font.pixelSize: Appearance.font.pixelSize.small
+                color: Appearance.colors.colSubtext
+                font.italic: true
+            }
+
+            // Help text for getting ICS URLs
+            StyledText {
+                Layout.fillWidth: true
+                Layout.topMargin: 4
+                Layout.leftMargin: 4
+                Layout.rightMargin: 4
+                text: Translation.tr("Paste an ICS/iCal URL from Google Calendar, Outlook, or any CalDAV provider. No account login needed — just the calendar URL.")
+                font.pixelSize: Appearance.font.pixelSize.smallest
+                color: Appearance.colors.colSubtext
+                wrapMode: Text.WordWrap
+                opacity: 0.7
+            }
+
+            // Inline add-source form (expands in place)
+            Rectangle {
+                id: addSourceForm
+                Layout.fillWidth: true
+                Layout.topMargin: 4
+
+                property bool expanded: false
+
+                implicitHeight: expanded ? addFormCol.implicitHeight + 24 : 0
+                visible: expanded
+                clip: true
+                radius: Appearance.rounding.small
+                color: Appearance.colors.colSurfaceContainerLow
+                border.width: 1
+                border.color: Appearance.colors.colLayer0Border
+
+                Behavior on implicitHeight {
+                    NumberAnimation {
+                        duration: Appearance.animation.elementMoveFast.duration
+                        easing.type: Appearance.animation.elementMoveFast.type
+                        easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve
+                    }
+                }
+
+                ColumnLayout {
+                    id: addFormCol
+                    anchors.fill: parent
+                    anchors.margins: 12
+                    spacing: 12
+
+                    StyledText {
+                        text: Translation.tr("Add Calendar Source")
+                        font.pixelSize: Appearance.font.pixelSize.normal
+                        font.weight: Font.DemiBold
+                        color: Appearance.colors.colOnLayer1
+                    }
+
+                    ColumnLayout {
+                        spacing: 4
+                        Layout.fillWidth: true
+
+                        StyledText {
+                            text: Translation.tr("Name")
+                            font.pixelSize: Appearance.font.pixelSize.small
+                            color: Appearance.colors.colSubtext
+                        }
+
+                        MaterialTextField {
+                            id: sourceNameInput
+                            Layout.fillWidth: true
+                            placeholderText: Translation.tr("Work Calendar")
+                            font.pixelSize: Appearance.font.pixelSize.small
+                            color: Appearance.m3colors.m3onSurface
+                            placeholderTextColor: Appearance.colors.colSubtext
+                            background: Rectangle {
+                                color: Appearance.colors.colLayer1
+                                radius: Appearance.rounding.small
+                                border.width: sourceNameInput.activeFocus ? 2 : 1
+                                border.color: sourceNameInput.activeFocus ? Appearance.m3colors.m3primary : Appearance.colors.colLayer0Border
+                            }
+                        }
+                    }
+
+                    ColumnLayout {
+                        spacing: 4
+                        Layout.fillWidth: true
+
+                        StyledText {
+                            text: Translation.tr("ICS URL")
+                            font.pixelSize: Appearance.font.pixelSize.small
+                            color: Appearance.colors.colSubtext
+                        }
+
+                        MaterialTextField {
+                            id: sourceUrlInput
+                            Layout.fillWidth: true
+                            placeholderText: "https://calendar.google.com/calendar/ical/..."
+                            font.pixelSize: Appearance.font.pixelSize.small
+                            color: Appearance.m3colors.m3onSurface
+                            placeholderTextColor: Appearance.colors.colSubtext
+                            background: Rectangle {
+                                color: Appearance.colors.colLayer1
+                                radius: Appearance.rounding.small
+                                border.width: sourceUrlInput.activeFocus ? 2 : 1
+                                border.color: sourceUrlInput.activeFocus ? Appearance.m3colors.m3primary : Appearance.colors.colLayer0Border
+                            }
+                        }
+                    }
+
+                    // Color picker
+                    ColumnLayout {
+                        spacing: 4
+
+                        StyledText {
+                            text: Translation.tr("Color")
+                            font.pixelSize: Appearance.font.pixelSize.small
+                            color: Appearance.colors.colSubtext
+                        }
+
+                        Row {
+                            id: colorPickerRow
+                            spacing: 6
+                            property string selectedColor: CalendarSync.presetColors[0]
+
+                            Repeater {
+                                model: CalendarSync.presetColors
+
+                                delegate: Rectangle {
+                                    required property string modelData
+                                    required property int index
+                                    width: 24
+                                    height: 24
+                                    radius: 12
+                                    color: modelData
+                                    border.width: colorPickerRow.selectedColor === modelData ? 2 : 0
+                                    border.color: Appearance.colors.colOnLayer1
+                                    opacity: colorPickMA.containsMouse ? 0.8 : 1
+
+                                    MouseArea {
+                                        id: colorPickMA
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: colorPickerRow.selectedColor = modelData
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Action buttons
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        Item { Layout.fillWidth: true }
+
+                        RippleButton {
+                            implicitWidth: cancelLabel.implicitWidth + 24
+                            implicitHeight: 32
+                            buttonRadius: Appearance.rounding.small
+                            colBackground: "transparent"
+                            colBackgroundHover: Appearance.colors.colLayer1Hover
+                            onClicked: {
+                                addSourceForm.expanded = false
+                                sourceNameInput.text = ""
+                                sourceUrlInput.text = ""
+                            }
+
+                            contentItem: StyledText {
+                                id: cancelLabel
+                                anchors.centerIn: parent
+                                text: Translation.tr("Cancel")
+                                font.pixelSize: Appearance.font.pixelSize.small
+                                color: Appearance.colors.colOnLayer1
+                            }
+                        }
+
+                        RippleButton {
+                            implicitWidth: addLabel.implicitWidth + 24
+                            implicitHeight: 32
+                            buttonRadius: Appearance.rounding.small
+                            colBackground: Appearance.colors.colPrimary
+                            colBackgroundHover: Appearance.colors.colPrimaryHover
+                            enabled: sourceNameInput.text.trim() !== "" && sourceUrlInput.text.trim() !== ""
+                            opacity: enabled ? 1 : 0.5
+                            onClicked: {
+                                CalendarSync.addSource(
+                                    sourceNameInput.text.trim(),
+                                    sourceUrlInput.text.trim(),
+                                    colorPickerRow.selectedColor
+                                )
+                                sourceNameInput.text = ""
+                                sourceUrlInput.text = ""
+                                addSourceForm.expanded = false
+                            }
+
+                            contentItem: StyledText {
+                                id: addLabel
+                                anchors.centerIn: parent
+                                text: Translation.tr("Add")
+                                font.pixelSize: Appearance.font.pixelSize.small
+                                font.weight: Font.Medium
+                                color: Appearance.colors.colOnPrimary
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
 }

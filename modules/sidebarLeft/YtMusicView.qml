@@ -604,10 +604,15 @@ Item {
                         placeholderText: "/path/to/cookies.txt"
                         text: YtMusic.customCookiesPath
                         color: root.colText
+                        renderType: Text.NativeRendering
                         font.pixelSize: Appearance.font.pixelSize.smaller
                         placeholderTextColor: root.colTextSecondary
                         background: Item {}
                         onAccepted: if (text) { YtMusic.setCustomCookiesPath(text); advancedOptionsPopup.close() }
+
+                        TextInputContextMenu {
+                            target: cookiesFieldPopup
+                        }
                     }
                 }
             }
@@ -704,7 +709,12 @@ Item {
                         TextField {
                             id: oauthClientIdField; anchors.fill: parent; anchors.margins: 6
                             placeholderText: "xxxxx.apps.googleusercontent.com"; color: root.colText
+                            renderType: Text.NativeRendering
                             font.pixelSize: Appearance.font.pixelSize.smallest; placeholderTextColor: root.colTextSecondary; background: Item {}
+
+                            TextInputContextMenu {
+                                target: oauthClientIdField
+                            }
                         }
                     }
 
@@ -715,7 +725,12 @@ Item {
                         TextField {
                             id: oauthClientSecretField; anchors.fill: parent; anchors.margins: 6
                             placeholderText: "GOCSPX-..."; color: root.colText; echoMode: TextInput.Password
+                            renderType: Text.NativeRendering
                             font.pixelSize: Appearance.font.pixelSize.smallest; placeholderTextColor: root.colTextSecondary; background: Item {}
+
+                            TextInputContextMenu {
+                                target: oauthClientSecretField
+                            }
                         }
                     }
 
@@ -1060,6 +1075,7 @@ Item {
                     Layout.fillWidth: true
                     placeholderText: Translation.tr("Search YouTube Music...")
                     color: root.colText
+                    renderType: Text.NativeRendering
                     placeholderTextColor: root.colTextSecondary
                     font.pixelSize: Appearance.font.pixelSize.normal
                     font.family: Appearance.font.family.main
@@ -1067,6 +1083,10 @@ Item {
                     selectByMouse: true
                     onAccepted: { if (text.trim()) YtMusic.search(text) }
                     Keys.onEscapePressed: { text = ""; focus = false }
+
+                    TextInputContextMenu {
+                        target: searchField
+                    }
                 }
                 
                 RippleButton {

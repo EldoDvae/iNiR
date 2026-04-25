@@ -115,6 +115,7 @@ Item {
                         width: parent.width
                         text: root.editing ? root.draft : Notepad.text
                         placeholderText: Translation.tr("Type something...")
+                        renderType: Text.NativeRendering
                         wrapMode: TextEdit.Wrap
                         font.pixelSize: Appearance.font.pixelSize.small
                         font.family: Appearance.font.family.main
