@@ -1,5 +1,6 @@
 //@ pragma UseQApplication
 //@ pragma Env QS_NO_RELOAD_POPUP=1
+//@ pragma Env INIR_STANDALONE_WINDOW=1
 //@ pragma Env QT_QUICK_CONTROLS_STYLE=Basic
 //@ pragma Env QT_QUICK_FLICKABLE_WHEEL_DECELERATION=10000
 
@@ -61,6 +62,7 @@ Scope {
     }
 
     Component.onCompleted: {
+        Quickshell.watchFiles = false
         MaterialThemeLoader.reapplyTheme()
         Config.readWriteDelay = 0
         // Staggered entry: scrim first, then card content

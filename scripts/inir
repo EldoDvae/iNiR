@@ -1101,6 +1101,18 @@ open_detached_qml_window() {
         exit 1
     fi
 
+    # Serialize concurrent launches of the same entry point (e.g. rapid
+    # keyboard-shortcut presses while the shell is unresponsive).  The lock
+    # covers only the check-kill-launch window; it is released before exec
+    # so child processes of qs (e.g. kde-material-you-colors) don't inherit
+    # and leak it.
+    local lock_file="${TMPDIR:-/tmp}/inir-launch-${entry%.qml}.lock"
+    exec 9>"$lock_file"
+    if ! flock -n 9; then
+        echo "$entry launch already in progress" >&2
+        exit 0
+    fi
+
     if has_instances "$qml_path"; then
         kill_shell "$qml_path"
         if ! wait_for_stop "$qml_path"; then
@@ -1114,6 +1126,7 @@ open_detached_qml_window() {
 
     apply_qt_runtime_env
     apply_qt_logging_rules
+    exec 9>&-
     exec "$qs_bin" -n -p "$qml_path"
 }
 
