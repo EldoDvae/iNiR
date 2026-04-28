@@ -4,9 +4,14 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Wayland
 import qs.modules.common
 import qs.modules.common.functions
 
+/**
+ * Idle service backed by Quickshell IdleMonitor (ext-idle-notify-v1).
+ * Replaces the previous swayidle-based implementation.
+ */
 Singleton {
     id: root
 
@@ -15,11 +20,6 @@ Singleton {
     readonly property int lockTimeout: Config.options?.idle?.lockTimeout ?? 600
     readonly property int suspendTimeout: Config.options?.idle?.suspendTimeout ?? 0
     readonly property string launcherPath: Quickshell.shellPath("scripts/inir")
-
-    onScreenOffTimeoutChanged: _restartSwayidle()
-    onLockTimeoutChanged: _restartSwayidle()
-    onSuspendTimeoutChanged: _restartSwayidle()
-    onInhibitChanged: _restartSwayidle()
 
     function toggleInhibit(active = null): void {
         if (active !== null) {
@@ -30,63 +30,71 @@ Singleton {
         Persistent.states.idle.inhibit = inhibit;
     }
 
-    function _restartSwayidle() {
-        _stopSwayidle()
-        if (!inhibit) _startSwayidleDelayed.start()
-    }
-
-    function _stopSwayidle() {
-        Quickshell.execDetached(["/usr/bin/pkill", "-x", "swayidle"])
-    }
-
-    function _startSwayidle() {
-        if (inhibit) return
-
-        const cmd = ["/usr/bin/swayidle", "-w"]
-        const lockBeforeSleep = Config.options?.idle?.lockBeforeSleep !== false
-
-        if (screenOffTimeout > 0) {
-            cmd.push("timeout", screenOffTimeout.toString(), "/usr/bin/niri msg action power-off-monitors", "resume", "/usr/bin/niri msg action power-on-monitors")
-        }
-
-        // Determine effective lock timeout
-        // If suspend is configured and lockBeforeSleep is enabled, ensure lock happens before suspend
-        let effectiveLockTimeout = lockTimeout
-        if (suspendTimeout > 0 && lockBeforeSleep) {
-            // Lock should happen before suspend - use 5 seconds before suspend if lockTimeout is 0 or > suspendTimeout
-            const lockBeforeSuspendTime = Math.max(1, suspendTimeout - 5)
-            if (lockTimeout <= 0 || lockTimeout > lockBeforeSuspendTime) {
-                effectiveLockTimeout = lockBeforeSuspendTime
+    // ── Screen off ───────────────────────────────────────────────
+    IdleMonitor {
+        id: screenOffMonitor
+        enabled: !root.inhibit && root.screenOffTimeout > 0
+        timeout: root.screenOffTimeout
+        onIsIdleChanged: {
+            if (isIdle) {
+                if (CompositorService.isNiri)
+                    Quickshell.execDetached(["/usr/bin/niri", "msg", "action", "power-off-monitors"])
+            } else {
+                if (CompositorService.isNiri)
+                    Quickshell.execDetached(["/usr/bin/niri", "msg", "action", "power-on-monitors"])
             }
         }
-
-        if (effectiveLockTimeout > 0) {
-            cmd.push("timeout", effectiveLockTimeout.toString(), `'${StringUtils.shellSingleQuoteEscape(root.launcherPath)}' lock activate`)
-        }
-
-        if (suspendTimeout > 0) {
-            cmd.push("timeout", suspendTimeout.toString(), "/usr/bin/systemctl suspend -i")
-        }
-
-        if (lockBeforeSleep) {
-            cmd.push("before-sleep", `'${StringUtils.shellSingleQuoteEscape(root.launcherPath)}' lock activate`)
-        }
-
-        console.log("[Idle] Starting swayidle")
-        Quickshell.execDetached(cmd)
     }
 
-    Timer {
-        id: _startSwayidleDelayed
-        interval: 200
-        onTriggered: root._startSwayidle()
+    // ── Lock ─────────────────────────────────────────────────────
+    IdleMonitor {
+        id: lockMonitor
+        enabled: !root.inhibit && root._effectiveLockTimeout > 0
+        timeout: root._effectiveLockTimeout
+        onIsIdleChanged: {
+            if (isIdle)
+                Quickshell.execDetached([root.launcherPath, "lock", "activate"])
+        }
     }
 
-    Connections {
-        target: Config
-        function onReadyChanged() {
-            if (Config.ready) root._restartSwayidle()
+    // ── Suspend ──────────────────────────────────────────────────
+    IdleMonitor {
+        id: suspendMonitor
+        enabled: !root.inhibit && root.suspendTimeout > 0
+        timeout: root.suspendTimeout
+        onIsIdleChanged: {
+            if (isIdle)
+                Quickshell.execDetached(["/usr/bin/systemctl", "suspend", "-i"])
         }
+    }
+
+    // ── Lock before sleep (logind PrepareForSleep D-Bus signal) ─
+    Process {
+        id: sleepWatcher
+        running: Config.options?.idle?.lockBeforeSleep !== false
+        command: [
+            "/usr/bin/dbus-monitor", "--system", "--profile",
+            "type='signal',interface='org.freedesktop.login1.Manager',member='PrepareForSleep'"
+        ]
+        stdout: SplitParser {
+            onRead: (line) => {
+                // dbus-monitor --profile emits tab-separated lines; the signal line contains "PrepareForSleep"
+                if (line.includes("PrepareForSleep"))
+                    Quickshell.execDetached([root.launcherPath, "lock", "activate"])
+            }
+        }
+    }
+
+    // Effective lock timeout accounts for suspend overlap
+    readonly property int _effectiveLockTimeout: {
+        const lockBeforeSleep = Config.options?.idle?.lockBeforeSleep !== false
+        let t = root.lockTimeout
+        if (root.suspendTimeout > 0 && lockBeforeSleep) {
+            const lockBeforeSuspendTime = Math.max(1, root.suspendTimeout - 5)
+            if (t <= 0 || t > lockBeforeSuspendTime)
+                t = lockBeforeSuspendTime
+        }
+        return t
     }
 
     Connections {
@@ -96,6 +104,4 @@ Singleton {
                 root.inhibit = true
         }
     }
-
-    Component.onDestruction: _stopSwayidle()
 }
