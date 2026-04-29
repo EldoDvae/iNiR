@@ -65,12 +65,16 @@ MouseArea {
     Image {
         id: backgroundWallpaper
         anchors.fill: parent
-        source: root._staticWallpaperPath
+        // Drop source on the safe blur path so the FastBlur layer never
+        // allocates a shader on Niri (where the MultiEffect path is the
+        // only renderer used).  Some GPU drivers leak a red buffer when the
+        // FastBlur shader fails to load even on an invisible item.
+        source: root.useSafeBlurPipeline ? "" : root._staticWallpaperPath
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         visible: !root.wallpaperIsGif && !root.wallpaperIsVideo && !root.useSafeBlurPipeline
         
-        layer.enabled: root.blurEnabled
+        layer.enabled: root.blurEnabled && !root.useSafeBlurPipeline
         layer.effect: FastBlur {
             radius: root.blurRadius
         }
@@ -99,13 +103,14 @@ MouseArea {
         id: gifWallpaper
         anchors.fill: parent
         visible: root.wallpaperIsGif && !root.useSafeBlurPipeline
-        source: root.wallpaperIsGif ? root._wallpaperSource : ""
+        // Same red-buffer guard as backgroundWallpaper above.
+        source: (root.wallpaperIsGif && !root.useSafeBlurPipeline) ? root._wallpaperSource : ""
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         cache: false
         playing: visible && root.enableAnimation
         
-        layer.enabled: root.blurEnabled
+        layer.enabled: root.blurEnabled && !root.useSafeBlurPipeline
         layer.effect: FastBlur {
             radius: root.blurRadius
         }
@@ -136,6 +141,8 @@ MouseArea {
         id: videoWallpaper
         anchors.fill: parent
         visible: root.wallpaperIsVideo && !root.useSafeBlurPipeline
+        // source already gates on useSafeBlurPipeline below; layer.enabled
+        // is gated to keep the FastBlur shader from being compiled on Niri.
         source: {
             if (!root.wallpaperIsVideo || root.useSafeBlurPipeline || !root._wallpaperSource) return "";
             const path = root._wallpaperSource;
@@ -176,7 +183,7 @@ MouseArea {
             }
         }
         
-        layer.enabled: root.blurEnabled
+        layer.enabled: root.blurEnabled && !root.useSafeBlurPipeline
         layer.effect: FastBlur {
             radius: root.blurRadius
         }
