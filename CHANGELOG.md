@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.24.0] - 2026-04-28
 
-The network stack stopped fork-bombing nmcli, swayidle is no longer a dependency, the on-screen keyboard learned to stay on top of overlays, and bluetooth icons finally show what's actually connected.
+The on-screen keyboard learned to stay on top of overlays, and bluetooth icons finally show what's actually connected.
 
 ### Added
 - **OSK keep-on-top toggle** *(#135)*: new toolbar button on the on-screen keyboard. When enabled, the OSK re-stacks above launcher / sidebars / overview / settings / etc. as those overlays open, via a brief wlr-layer-shell remap. Default off. Requested by ImDarkos.
@@ -16,22 +16,21 @@ The network stack stopped fork-bombing nmcli, swayidle is no longer a dependency
 - **`inir colorpicker` CLI**: top-level command for the wallpaper color picker, documented alongside the rest of the CLI.
 
 ### Changed
-- **NetworkManager via Quickshell.Networking**: `services/Network.qml` no longer shells out to `nmcli` for scanning, connecting, monitoring or password changes. Same public API shape, zero consumer changes, much less process churn and no more stray `nmcli monitor` to clean up.
-- **Native idle handling**: replaced `swayidle` with `IdleMonitor` (ext-idle-notify-v1). Screen-off ignores idle inhibitors so the display blanks on schedule even with a video playing; lock and suspend still respect them. Lock-before-sleep listens to logind's `PrepareForSleep` directly. `Idle.inhibit` / `Idle.toggleInhibit` API unchanged. Power on/off goes through `CompositorService` IPC so Niri and Hyprland are both covered. `swayidle` is dropped from every install path (Arch / Fedora / Debian / generic), the toolkit / deps PKGBUILDs, `doctor.sh`, `deps-map.sh` and the related docs.
 - **Audio mic via PipeWire native**: removed the 2s `wpctl` polling for mic state and now reads/writes through QS PipeWire bindings directly. Sink-side `wpctl` paths kept as a defensive fallback for USB / device-route edge cases.
 - **Standalone-window environment isolation**: settings, waffleSettings, welcome and killDialog now use `INIR_STANDALONE_WINDOW=1` instead of piggybacking on `QS_NO_RELOAD_POPUP`. Fixes the main shell being incorrectly identified as a settings process — which suppressed reload toasts and skipped external theme application. Standalone windows also disable file watching now (single-shot UI doesn't need hot-reload).
-- **Pragmas**: added `DropExpensiveFonts` (skips woff/woff2 parsing, iNiR uses TTF/OTF only), and switched `QT_LOGGING_RULES`, `QT_QUICK_FLICKABLE_WHEEL_DECELERATION`, `QSG_RENDER_LOOP` to `DefaultEnv` so user overrides are respected.
 
 ### Fixed
+- **Bar resources stuck at "100% memory, 0% rest" until the sidebar opened**: `ResourceUsage.qml` defaulted `memoryTotal=1` with no zero-guard, so the percentage binding evaluated to 100% before the first poll. The poll waited a full `updateInterval` (3s) and `FileView.text()` returned empty on that first call anyway. Now `ensureRunning()` primes `_pollSensors()` synchronously and initial totals start at `0` with a percentage guard.
+- **Quickshell grabbing the NVIDIA dGPU on hybrid laptops** *(#136, [discussion #133](https://github.com/snowarch/iNiR/discussions/133))*: even with `resources.monitorGpu=false` skipping the polling (#106), the Vulkan loader still `dlopen`'d `libnvidia-*` during device enumeration, opening the `/dev/nvidia*` fds visible in the issue's lsof. New `apply_gpu_policy()` in the launcher detects hybrid via DRM `boot_vga` and, when the toggle is off, sets `VK_LOADER_DRIVERS_DISABLE=*nvidia*`, `MESA_VK_DEVICE_SELECT=pci-<iGPU>`, `__GLX_VENDOR_LIBRARY_NAME=mesa`, `__VK_LAYER_NV_optimus=non_NVIDIA_only`, `VDPAU_DRIVER=none`, and a few related vars before `QGuiApplication` initialises. One Settings toggle controls both halves. Hard opt-out: `INIR_GPU_FORCE_DEFAULT=1`.
 - **Hot-reload SIGSEGV**: shipped Quickshell upstream patch (`patches/quickshell/fix-extension-uaf.patch`) moves extension deletion in `EngineGeneration::destroy()` to after root destruction, fixing the use-after-free in `IpcHandlerRegistry`. Also added `QS_DISABLE_CRASH_HANDLER=1` to the systemd unit so failed reloads stop dumping ~1 MB crash reports into `~/.cache/quickshell/crashes/` on every iteration.
 - **Duplicate settings / welcome instances on rapid keypress**: `flock` guard in `open_detached_qml_window()`.
 - **Token compliance across settings UI**: hardcoded white / black / orange replaced with the matching token (`colOnLayer0`, `Looks.colors.fg`, `colWarning`). Spinbox schedule never saving (wrong signal name) and disabled toggles rendering as checked are also fixed in the same pass.
 
 ### Issues / PRs
-- Fixed [#135](https://github.com/snowarch/iNiR/issues/135).
+- Fixed [#135](https://github.com/snowarch/iNiR/issues/135), [#136](https://github.com/snowarch/iNiR/issues/136).
 
 ### Contributors
-Thanks to **ImDarkos** for the OSK keep-on-top request in [#135](https://github.com/snowarch/iNiR/issues/135).
+Thanks to **ImDarkos** ([#135](https://github.com/snowarch/iNiR/issues/135)), **ST-SARAVANAPRIYAN** ([#136](https://github.com/snowarch/iNiR/issues/136)) and **standwlkdljea** ([#106](https://github.com/snowarch/iNiR/issues/106)).
 
 ## [2.23.0] - 2026-04-25
 

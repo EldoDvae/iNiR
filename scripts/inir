@@ -462,7 +462,63 @@ _get_systemd_user_env() {
     printf '%s' "$_cached_systemd_env"
 }
 
+apply_gpu_policy() {
+    # Pin Qt/Mesa to the iGPU on hybrid laptops so the dGPU can stay in
+    # runtime PM suspend.  Coupled to resources.monitorGpu (Settings UI):
+    # only fires when the user disabled GPU monitoring.  See #106, #136.
+    # Hard opt-out: INIR_GPU_FORCE_DEFAULT=1.
+    [[ "${INIR_GPU_FORCE_DEFAULT:-0}" == "1" ]] && return
+
+    local monitor_gpu="true"
+    if command -v jq >/dev/null 2>&1; then
+        local _gpu_cfg
+        _gpu_cfg="$(inir_config_file 2>/dev/null)"
+        if [[ -n "$_gpu_cfg" && -f "$_gpu_cfg" ]]; then
+            monitor_gpu="$(jq -r '.resources.monitorGpu // true' "$_gpu_cfg" 2>/dev/null || true)"
+            [[ -z "$monitor_gpu" ]] && monitor_gpu="true"
+        fi
+    fi
+    [[ "$monitor_gpu" == "true" ]] && return
+
+    # Hybrid detection via DRM boot_vga (1=iGPU primary, 0=dGPU secondary).
+    local igpu_pci="" has_dgpu=""
+    local card bvga_file boot_vga dev_link
+    for card in /sys/class/drm/card*; do
+        [[ -d "$card" ]] || continue
+        bvga_file="${card}/device/boot_vga"
+        [[ -f "$bvga_file" ]] || continue
+        boot_vga=$(cat "$bvga_file" 2>/dev/null)
+        if [[ "$boot_vga" == "1" && -z "$igpu_pci" ]]; then
+            dev_link=$(readlink -f "${card}/device" 2>/dev/null)
+            igpu_pci=$(printf '%s\n' "$dev_link" | grep -oE '[0-9a-f]{4}:[0-9a-f]{2}:[0-9a-f]{2}\.[0-9a-f]' | tail -1)
+        elif [[ "$boot_vga" == "0" ]]; then
+            has_dgpu=1
+        fi
+    done
+    [[ -z "$has_dgpu" || -z "$igpu_pci" ]] && return
+
+    # Vulkan loader: skip NVIDIA's ICD entirely (loader 1.3.207+).  Without
+    # this the loader dlopens libnvidia-* during enumeration, which is what
+    # opens the /dev/nvidia* fds in #136's lsof.
+    [[ -z "${VK_LOADER_DRIVERS_DISABLE:-}" ]] && export VK_LOADER_DRIVERS_DISABLE="*nvidia*"
+    # Mesa Vulkan device-select: prefer the iGPU PCI bus.
+    [[ -z "${MESA_VK_DEVICE_SELECT:-}" ]] && export MESA_VK_DEVICE_SELECT="pci-$igpu_pci"
+    [[ -z "${MESA_VK_DEVICE_SELECT_FORCE_DEFAULT_DEVICE:-}" ]] && export MESA_VK_DEVICE_SELECT_FORCE_DEFAULT_DEVICE=1
+    # GLVND: OpenGL via Mesa, not NVIDIA's libGLX.
+    [[ -z "${__GLX_VENDOR_LIBRARY_NAME:-}" ]] && export __GLX_VENDOR_LIBRARY_NAME=mesa
+    [[ -z "${__NV_PRIME_RENDER_OFFLOAD:-}" ]] && export __NV_PRIME_RENDER_OFFLOAD=0
+    # Qt FFmpeg: no NVDEC/CUDA hwaccel.
+    [[ -z "${QT_FFMPEG_DECODING_HW_DEVICE_TYPES+x}" ]] && export QT_FFMPEG_DECODING_HW_DEVICE_TYPES=
+    # NVIDIA optimus Vulkan layer: pretend iGPU only.
+    [[ -z "${__VK_LAYER_NV_optimus:-}" ]] && export __VK_LAYER_NV_optimus=non_NVIDIA_only
+    # VDPAU: Qt FFmpeg probes libvdpau_nvidia.so on init even with hwaccel off.
+    [[ -z "${VDPAU_DRIVER:-}" ]] && export VDPAU_DRIVER=none
+}
+
 apply_qt_runtime_env() {
+    # Must run before Qt reads env at QGuiApplication construction.
+    apply_gpu_policy
+
     # Ensure WAYLAND_DISPLAY is set — required for Qt to select the wayland
     # platform backend.  When systemd starts inir.service at boot, the
     # compositor may not have exported WAYLAND_DISPLAY into the user manager
