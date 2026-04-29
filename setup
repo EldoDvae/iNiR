@@ -271,59 +271,205 @@ ensure_user_inir_service_enabled() {
 ###############################################################################
 # Help
 ###############################################################################
+setup_current_branch() {
+    git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown"
+}
+
+setup_tracked_branch() {
+    get_update_tracking_branch 2>/dev/null || echo "main"
+}
+
+setup_service_link_summary() {
+    local links=()
+    local wants_dir
+    for wants_dir in "${XDG_CONFIG_HOME}/systemd/user"/*.wants; do
+        [[ -d "$wants_dir" ]] || continue
+        [[ -e "$wants_dir/inir.service" || -L "$wants_dir/inir.service" ]] || continue
+        links+=("$(basename "${wants_dir%.wants}")")
+    done
+
+    if [[ ${#links[@]} -eq 0 ]]; then
+        printf '%s' "not enabled"
+        return
+    fi
+
+    local IFS=', '
+    printf '%s' "${links[*]}"
+}
+
+setup_remote_state_summary() {
+    local installed_strategy
+    installed_strategy="$(get_installed_update_strategy)"
+
+    if [[ "$installed_strategy" == "package-manager" ]]; then
+        printf '%s' "package-managed"
+        return
+    fi
+
+    if [[ ! -d "${REPO_ROOT}/.git" ]] || ! declare -F check_remote_updates >/dev/null 2>&1; then
+        printf '%s' "unavailable"
+        return
+    fi
+
+    local rc=0
+    check_remote_updates || rc=$?
+    case "$rc" in
+        0) printf '%s' "update available" ;;
+        1) printf '%s' "up to date" ;;
+        2) printf '%s' "offline or missing remote" ;;
+        3) printf '%s' "ahead of remote" ;;
+        4) printf '%s' "diverged" ;;
+        *) printf '%s' "unknown" ;;
+    esac
+}
+
+setup_runtime_change_summary() {
+    local installed_mode runtime_dir manifest mod_files add_files mod_count=0 add_count=0
+    installed_mode="$(get_installed_install_mode)"
+    runtime_dir="$(get_runtime_shell_dir)"
+
+    case "$installed_mode" in
+        package-managed)
+            printf '%s' "externally managed"
+            return
+            ;;
+        repo-link)
+            if [[ -d "${REPO_ROOT}/.git" ]]; then
+                local dirty_count
+                dirty_count="$(git -C "$REPO_ROOT" status --porcelain 2>/dev/null | wc -l | tr -d ' ')"
+                if [[ "${dirty_count:-0}" -eq 0 ]]; then
+                    printf '%s' "clean"
+                else
+                    printf '%s' "${dirty_count} local repo change(s)"
+                fi
+                return
+            fi
+            ;;
+        repo-copy)
+            [[ -n "$runtime_dir" && -d "$runtime_dir" ]] || { printf '%s' "runtime missing"; return; }
+            manifest="$(find_runtime_manifest_file "$runtime_dir" 2>/dev/null || true)"
+            if [[ -n "$manifest" ]] && manifest_has_checksums "$manifest"; then
+                mod_files="$(detect_user_modifications "$runtime_dir" "$manifest")"
+                add_files="$(detect_user_additions "$runtime_dir" "$manifest")"
+            else
+                mod_files="$(detect_user_modifications_by_source_comparison "$runtime_dir" "$REPO_ROOT")"
+                add_files=""
+            fi
+            [[ -n "$mod_files" ]] && mod_count="$(printf '%s\n' "$mod_files" | grep -c . || true)"
+            [[ -n "$add_files" ]] && add_count="$(printf '%s\n' "$add_files" | grep -c . || true)"
+            if [[ "$mod_count" -eq 0 && "$add_count" -eq 0 ]]; then
+                printf '%s' "clean"
+            else
+                printf '%s' "${mod_count} modified, ${add_count} added"
+            fi
+            return
+            ;;
+    esac
+
+    printf '%s' "unknown"
+}
+
+setup_preserved_mods_summary() {
+    if [[ ! -d "$USER_MODS_DIR" ]]; then
+        printf '%s' "0 backups"
+        return
+    fi
+
+    local count
+    count="$(find "$USER_MODS_DIR" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')"
+    printf '%s' "${count:-0} backups"
+}
+
+show_setup_context_card() {
+    local title="${1:-Current Context}"
+    local installed_ver installed_commit installed_mode update_strategy runtime_dir current_branch tracked_branch launcher_path service_links remote_state runtime_state
+    installed_ver="$(get_installed_version)"
+    installed_commit="$(get_installed_commit)"
+    installed_mode="$(get_installed_install_mode)"
+    update_strategy="$(get_installed_update_strategy)"
+    runtime_dir="$(get_runtime_shell_dir)"
+    current_branch="$(setup_current_branch)"
+    tracked_branch="$(setup_tracked_branch)"
+    launcher_path="$(command -v inir 2>/dev/null || echo "${XDG_BIN_HOME}/inir")"
+    service_links="$(setup_service_link_summary)"
+    remote_state="$(setup_remote_state_summary)"
+    runtime_state="$(setup_runtime_change_summary)"
+
+    local pairs=(
+        "Installed:${installed_ver} (${installed_commit})"
+        "Mode:${installed_mode}"
+        "Updates:${update_strategy}"
+        "Remote:${remote_state}"
+        "Runtime State:${runtime_state}"
+        "Runtime:${runtime_dir:-"(missing)"}"
+        "Launcher:${launcher_path}"
+        "Service:${service_links}"
+    )
+
+    if [[ -d "${REPO_ROOT}/.git" ]]; then
+        pairs+=("Branch:${current_branch}")
+        [[ "$current_branch" == "HEAD" ]] && pairs+=("Tracks:origin/${tracked_branch}")
+    fi
+
+    tui_summary_card "$title" "${pairs[@]}"
+}
+
 show_help() {
     echo ""
-    tui_title "iNiR setup"
+    tui_hero_card "iNiR setup" \
+        "Install, sync, repair, inspect, and unfuck the shell without guessing which entrypoint owns what." \
+        "Use inir for daily runtime control. Use ./setup when you want the maintenance brain."
 
     tui_key_value "Usage:" "./setup [command] [options]"
-    echo ""
+    show_setup_context_card "Setup Overview"
 
-    tui_subtitle "Role"
-    tui_dim "  setup owns installation and maintenance flows."
-    tui_dim "  The \`inir\` launcher forwards install/update/doctor/status/migrate/rollback/my-changes/uninstall back to this script."
-    tui_dim "  Use \`inir\` for daily runtime control, and \`./setup\` when you want the underlying maintenance entrypoint or the interactive TUI."
-    echo ""
+    tui_section_start "What setup owns"
+    tui_list_item "Install flow, runtime sync, migrations, snapshots, and service refresh"
+    tui_list_item "Repo-aware updates for repo-link and repo-copy installs"
+    tui_list_item "Health diagnostics and safe automatic fixes"
+    tui_section_end
 
-    tui_subtitle "Commands"
+    tui_section_start "Everyday maintenance"
     tui_list_item "(none)      Interactive menu"
     tui_list_item "install     Full installation (deps + config + files)"
     tui_list_item "update      Check remote, pull, sync, restart shell"
+    tui_list_item "doctor      Diagnose and fix common breakage"
     tui_list_item "status      Show install mode, update strategy, and health"
+    tui_list_item "logs        View recent runtime logs"
+    tui_list_item "info        System and shell details dashboard"
+    tui_section_end
+
+    tui_section_start "Recovery and history"
     tui_list_item "migrate     Review/apply config migrations"
-    tui_list_item "doctor      Diagnose and fix problems"
-    tui_list_item "rollback    Restore previous snapshot"
-    tui_list_item "my-changes  View/restore your preserved modifications"
-    tui_list_item "uninstall   Remove iNiR from system"
+    tui_list_item "backup      Create a manual snapshot"
+    tui_list_item "rollback    Restore a previous snapshot"
+    tui_list_item "my-changes  View or restore preserved user modifications"
     tui_list_item "reinstall   Re-run install pipeline for current setup"
+    tui_list_item "uninstall   Remove iNiR from the system"
+    tui_section_end
+
+    tui_section_start "Customization"
     tui_list_item "config      View and edit shell settings"
     tui_list_item "theme       Change wallpaper and color scheme"
-    tui_list_item "info        System and shell details dashboard"
-    tui_list_item "backup      Create a manual snapshot"
-    tui_list_item "logs        View recent runtime logs"
-    tui_list_item "extras      Install optional extras (iNiR-Walls / SDDM theme / YAMIS icons)"
-    echo ""
+    tui_list_item "extras      Install optional extras (iNiR-Walls / SDDM / YAMIS icons)"
+    tui_section_end
 
-    tui_subtitle "Options"
+    tui_section_start "Options"
     tui_list_item "-y, --yes              Skip prompts (auto-yes)"
     tui_list_item "-q, --quiet            Minimal output"
     tui_list_item "--local                Sync local repo to install (skip git pull)"
     tui_list_item "--set-default-shell    Set Fish as default shell (uses chsh)"
     tui_list_item "-h, --help             Show this help"
-    echo ""
+    tui_section_end
 
-    tui_subtitle "Examples"
-    tui_dim "  ./setup install      # Install iNiR once"
-    tui_dim "  ./setup reinstall    # Re-run install for current setup"
-    tui_dim "  ./setup theme        # Change wallpaper & colors"
-    tui_dim "  ./setup config       # View/edit shell settings"
-    tui_dim "  ./setup info         # Rich system dashboard"
-    tui_dim "  ./setup backup       # Create a manual snapshot"
-    tui_dim "  ./setup logs         # Browse runtime logs"
-    tui_dim "  ./setup extras       # Optional extras installer"
-    tui_dim "  inir update          # Wrapper around ./setup update"
-    tui_dim "  inir doctor          # Wrapper around ./setup doctor"
-    tui_dim "  inir run             # Start iNiR"
-    tui_dim "  ./setup              # Advanced interactive menu"
+    tui_section_start "Good defaults"
+    tui_list_item "./setup install      Install iNiR once"
+    tui_list_item "./setup update       Pull, sync, and restart"
+    tui_list_item "./setup doctor       Diagnose weird runtime breakage"
+    tui_list_item "./setup status       See what is installed and what is drifting"
+    tui_list_item "inir run             Start the shell"
+    tui_list_item "inir logs            Read what the shell is complaining about"
+    tui_section_end
     echo ""
 }
 
@@ -480,9 +626,19 @@ show_status() {
     local runtime_version_file=""
     local running_output
     local runtime_dir_display="${runtime_dir:-"(missing)"}"
+    local repo_path_display="$installed_repo_path"
+    local branch_display="$(setup_current_branch)"
+    local tracked_branch="$(setup_tracked_branch)"
+    local remote_state="$(setup_remote_state_summary)"
+    local runtime_state="$(setup_runtime_change_summary)"
+    local preserved_mods="$(setup_preserved_mods_summary)"
 
     if [[ -n "$runtime_dir" ]]; then
         runtime_version_file="$(get_runtime_version_file)"
+    fi
+
+    if [[ -n "$repo_path_display" ]]; then
+        repo_path_display="$(realpath "$repo_path_display" 2>/dev/null || printf '%s' "$repo_path_display")"
     fi
 
     if [[ -n "$installed_repo_path" && -f "${installed_repo_path}/VERSION" ]]; then
@@ -493,16 +649,22 @@ show_status() {
         repo_commit=$(get_repo_commit)
     fi
 
-    tui_title "Status"
+    tui_hero_card "Status" \
+        "What is installed, what is running, and whether this checkout still matches reality." \
+        "If any of this looks cursed, run ./setup doctor before you start randomly editing files."
 
     tui_table_header "Property" "Value" 14 36
     tui_table_row "Version" "$installed_ver" 14 36
     tui_table_row "Commit" "$installed_commit" 14 36
     tui_table_row "Install Mode" "$installed_mode" 14 36
     tui_table_row "Updates" "$update_strategy" 14 36
+    tui_table_row "Branch" "$branch_display" 14 36
+    tui_table_row "Tracks" "origin/${tracked_branch}" 14 36
+    tui_table_row "Remote State" "$remote_state" 14 36
+    tui_table_row "Runtime State" "$runtime_state" 14 36
     tui_table_row "Runtime Path" "$runtime_dir_display" 14 36
     tui_table_row "Launcher" "inir run" 14 36
-    [[ -n "$installed_repo_path" ]] && tui_table_row "Repo Path" "$installed_repo_path" 14 36
+    [[ -n "$repo_path_display" ]] && tui_table_row "Repo Path" "$repo_path_display" 14 36
     if [[ "$update_strategy" == "package-manager" ]]; then
         [[ -n "$update_hint" ]] && tui_table_row "Update Cmd" "$update_hint" 14 36
         tui_table_row "Workspace Ver" "$repo_ver" 14 36
@@ -534,11 +696,28 @@ show_status() {
         tui_check_warn "Runtime payload missing"
     fi
 
-    if command -v inir &>/dev/null || [[ -x "${REPO_ROOT}/scripts/inir" ]]; then
-        tui_check_ok "Launcher available"
+    local launcher_path
+    launcher_path="$(command -v inir 2>/dev/null || true)"
+    if [[ -n "$launcher_path" || -x "${REPO_ROOT}/scripts/inir" ]]; then
+        tui_check_ok "Launcher available${launcher_path:+: $launcher_path}"
     else
         tui_check_warn "Launcher not available in PATH"
     fi
+
+    local service_path="${XDG_CONFIG_HOME}/systemd/user/inir.service"
+    local service_links
+    service_links="$(setup_service_link_summary)"
+    if [[ -f "$service_path" ]]; then
+        tui_check_ok "User service installed (${service_links})"
+    else
+        tui_check_warn "User service not installed"
+    fi
+
+    case "$remote_state" in
+        "up to date") tui_check_ok "Repo remote state: ${remote_state}" ;;
+        "update available"|"ahead of remote"|"offline or missing remote") tui_check_warn "Repo remote state: ${remote_state}" ;;
+        "diverged") tui_check_fail "Repo remote state: ${remote_state}" ;;
+    esac
 
     if [[ -f "$runtime_version_file" ]]; then
         tui_check_ok "Runtime metadata present"
@@ -564,12 +743,24 @@ show_status() {
         tui_check_ok "No pending migrations"
     fi
 
+    if [[ "$runtime_state" == "clean" || "$runtime_state" == "externally managed" ]]; then
+        tui_check_ok "Runtime payload state: ${runtime_state}"
+    else
+        tui_check_warn "Runtime payload state: ${runtime_state}"
+    fi
+
     # Snapshots
     local snapshot_count=$(list_snapshots 2>/dev/null | wc -l)
     if [[ "$snapshot_count" -gt 0 ]]; then
         tui_check_ok "$snapshot_count snapshot(s) available"
     else
         tui_check_skip "No snapshots"
+    fi
+
+    if [[ "$preserved_mods" == "0 backups" ]]; then
+        tui_check_skip "Preserved modifications: ${preserved_mods}"
+    else
+        tui_check_warn "Preserved modifications: ${preserved_mods}"
     fi
     echo ""
 }
@@ -579,8 +770,9 @@ show_status() {
 ###############################################################################
 show_info() {
     echo ""
-    tui_title "iNiR System Information"
-    echo ""
+    tui_hero_card "iNiR System Information" \
+        "The useful stuff: platform, runtime, launcher, and the shell state that usually matters when something gets weird." \
+        "This is the quick dashboard. Doctor is the one that actually gets its hands dirty."
 
     # System detection
     local distro_name="Unknown"
@@ -619,6 +811,9 @@ show_info() {
     config_dir="$(resolve_inir_config_dir)"
     local config_file="${config_dir}/config.json"
     local state_dir="${XDG_STATE_HOME}/quickshell/user/generated"
+    local remote_state="$(setup_remote_state_summary)"
+    local runtime_state="$(setup_runtime_change_summary)"
+    local preserved_mods="$(setup_preserved_mods_summary)"
 
     # Panel family detection
     local panel_family="unknown"
@@ -644,7 +839,8 @@ show_info() {
         [[ -n "$current_wallpaper" && "$current_wallpaper" != "null" ]] && current_wallpaper="$(basename "$current_wallpaper")"
     fi
 
-    # Display using summary cards and columns
+    show_setup_context_card "Runtime Snapshot"
+
     local sys_info
     sys_info=$(printf '%s\n%s\n%s\n%s\n%s' \
         "Distro:      $distro_name" \
@@ -673,6 +869,9 @@ show_info() {
     tui_key_value "Runtime:" "${runtime_dir:-"(not set)"}"
     tui_key_value "Repo:" "$REPO_ROOT"
     tui_key_value "Launcher:" "$(command -v inir 2>/dev/null || echo "${XDG_BIN_HOME}/inir")"
+    tui_key_value "Remote:" "$remote_state"
+    tui_key_value "Runtime State:" "$runtime_state"
+    tui_key_value "Preserved Mods:" "$preserved_mods"
 
     echo ""
 
@@ -700,6 +899,33 @@ show_info() {
 
     local snapshot_count=$(list_snapshots 2>/dev/null | wc -l)
     tui_check_ok "$snapshot_count snapshot(s) available"
+
+    local service_path="${XDG_CONFIG_HOME}/systemd/user/inir.service"
+    if [[ -f "$service_path" ]]; then
+        tui_check_ok "User service file present"
+    else
+        tui_check_warn "User service file missing"
+    fi
+
+    local launcher_path
+    launcher_path="$(command -v inir 2>/dev/null || true)"
+    if [[ -n "$launcher_path" ]]; then
+        tui_check_ok "Launcher resolves to $launcher_path"
+    else
+        tui_check_warn "Launcher not found in PATH"
+    fi
+
+    case "$remote_state" in
+        "diverged") tui_check_fail "Repo remote state: ${remote_state}" ;;
+        "up to date") tui_check_ok "Repo remote state: ${remote_state}" ;;
+        *) tui_check_warn "Repo remote state: ${remote_state}" ;;
+    esac
+
+    if [[ "$runtime_state" == "clean" || "$runtime_state" == "externally managed" ]]; then
+        tui_check_ok "Runtime payload state: ${runtime_state}"
+    else
+        tui_check_warn "Runtime payload state: ${runtime_state}"
+    fi
 
     echo ""
 }
@@ -2127,8 +2353,10 @@ run_update() {
 ###############################################################################
 run_doctor() {
     echo ""
-    tui_title "iNiR Doctor"
-    echo ""
+    tui_hero_card "iNiR Doctor" \
+        "Checks the boring but important stuff: dependencies, runtime payload, launcher, service wiring, theming, and the usual desktop-shell landmines." \
+        "It will apply safe fixes. It will not rewrite your git history like an idiot."
+    show_setup_context_card "Doctor Context"
     run_doctor_with_fixes
 }
 

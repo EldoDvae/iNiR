@@ -81,6 +81,8 @@ Quick start:
 
 EOF
 
+    print_cli_context
+
     # Dynamic IPC target listing from registry
     if source_ipc_registry 2>/dev/null; then
         printf 'IPC targets (inir <target> <function>):\n'
@@ -111,6 +113,168 @@ Other:
   completions <bash|zsh|fish>
   service <install|uninstall|enable|disable|start|stop|restart|status|logs>
   repair, path, test-local, settings-window, waffle-settings-window
+EOF
+}
+
+read_version_field() {
+    local version_file="$1"
+    local jq_expr="$2"
+    local fallback_regex="$3"
+
+    [[ -n "$version_file" && -f "$version_file" ]] || return 1
+
+    if command -v jq >/dev/null 2>&1; then
+        jq -r "${jq_expr} // empty" "$version_file" 2>/dev/null || true
+        return 0
+    fi
+
+    sed -n "s/.*${fallback_regex}.*/\\1/p" "$version_file" 2>/dev/null | head -1
+}
+
+resolve_live_version_context() {
+    local version_file="$1"
+    local runtime_path="$2"
+
+    local install_mode=""
+    install_mode="$(read_version_field "$version_file" '.installMode // .install_mode' '"installMode"[[:space:]]*:[[:space:]]*"\([^"]*\)"')"
+    [[ -z "$install_mode" ]] && install_mode="$(read_version_field "$version_file" '.install_mode' '"install_mode"[[:space:]]*:[[:space:]]*"\([^"]*\)"')"
+
+    local repo_dir=""
+    repo_dir="$(read_version_field "$version_file" '.repoPath // .repo_path' '"repoPath"[[:space:]]*:[[:space:]]*"\([^"]*\)"')"
+    [[ -z "$repo_dir" ]] && repo_dir="$(read_version_field "$version_file" '.repo_path' '"repo_path"[[:space:]]*:[[:space:]]*"\([^"]*\)"')"
+    repo_dir="${repo_dir/#\~/$HOME}"
+
+    if [[ "$install_mode" == "repo-link" ]]; then
+        if [[ -n "$runtime_path" && -d "$runtime_path/.git" ]]; then
+            printf '%s' "$runtime_path"
+            return 0
+        fi
+        if [[ -n "$repo_dir" && -d "$repo_dir/.git" ]]; then
+            printf '%s' "$repo_dir"
+            return 0
+        fi
+        if [[ -n "$launcher_root" && -d "$launcher_root/.git" ]]; then
+            printf '%s' "$launcher_root"
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
+detect_runtime_path_for_help() {
+    local candidate
+    for candidate in "$config_dir" "$user_config_dir" "$system_config_dir" "$fallback_system_config_dir"; do
+        if [[ -n "$candidate" && -f "$candidate/shell.qml" ]]; then
+            printf '%s' "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
+service_link_summary() {
+    if ! command -v systemctl >/dev/null 2>&1; then
+        printf '%s' "unknown"
+        return
+    fi
+
+    local links=()
+    local wants_dir
+    for wants_dir in "$systemd_user_dir"/*.wants; do
+        [[ -d "$wants_dir" ]] || continue
+        [[ -e "$wants_dir/inir.service" || -L "$wants_dir/inir.service" ]] || continue
+        [[ "$(basename "$wants_dir")" == "graphical-session.target.wants" ]] && continue
+        links+=("$(basename "${wants_dir%.wants}")")
+    done
+
+    if [[ ${#links[@]} -eq 0 ]]; then
+        printf '%s' "disabled"
+        return
+    fi
+
+    local IFS=', '
+    printf '%s' "${links[*]}"
+}
+
+print_cli_context() {
+    local version_file version install_mode update_strategy runtime_path setup_dir launcher_path branch service_state
+    version_file="$(inir_version_file 2>/dev/null || true)"
+    version="$(read_version_field "$version_file" '.version' '"version"[[:space:]]*:[[:space:]]*"\([^"]*\)"')"
+    install_mode="$(read_version_field "$version_file" '.installMode // .install_mode' '"installMode"[[:space:]]*:[[:space:]]*"\([^"]*\)"')"
+    [[ -z "$install_mode" ]] && install_mode="$(read_version_field "$version_file" '.install_mode' '"install_mode"[[:space:]]*:[[:space:]]*"\([^"]*\)"')"
+    update_strategy="$(read_version_field "$version_file" '.updateStrategy // .update_strategy' '"updateStrategy"[[:space:]]*:[[:space:]]*"\([^"]*\)"')"
+    [[ -z "$update_strategy" ]] && update_strategy="$(read_version_field "$version_file" '.update_strategy' '"update_strategy"[[:space:]]*:[[:space:]]*"\([^"]*\)"')"
+
+    resolve_config_dir
+    runtime_path="$(detect_runtime_path_for_help || true)"
+    setup_dir="$(resolve_setup_dir 2>/dev/null || true)"
+    launcher_path="$(resolve_launcher_path)"
+    service_state="$(service_link_summary)"
+
+    local live_repo=""
+    live_repo="$(resolve_live_version_context "$version_file" "$runtime_path" || true)"
+    if [[ -n "$live_repo" ]]; then
+        [[ -f "$live_repo/VERSION" ]] && version="$(tr -d '[:space:]' < "$live_repo/VERSION")"
+        install_mode="repo-link"
+    fi
+
+    printf 'Current context:\n'
+    [[ -n "$version" ]] && printf '  version: %s\n' "$version"
+    [[ -n "$install_mode" ]] && printf '  install mode: %s\n' "$install_mode"
+    [[ -n "$update_strategy" ]] && printf '  update strategy: %s\n' "$update_strategy"
+    [[ -n "$runtime_path" ]] && printf '  runtime: %s\n' "$runtime_path"
+    [[ -n "$setup_dir" ]] && printf '  setup: %s\n' "$setup_dir"
+    printf '  launcher: %s\n' "$launcher_path"
+    printf '  service: %s\n' "$service_state"
+
+    if [[ -n "$setup_dir" && -d "$setup_dir/.git" ]]; then
+        branch="$(git -C "$setup_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+        if [[ -n "$branch" ]]; then
+            printf '  branch: %s\n' "$branch"
+            [[ "$branch" != "main" && "$branch" != "master" ]] && printf '  note: non-release branch\n'
+        fi
+    fi
+
+    printf '\n'
+}
+
+service_usage() {
+    local service_state
+    service_state="$(service_link_summary)"
+    cat <<EOF
+Usage: inir service <install|uninstall|enable|disable|start|stop|restart|status|logs> [args...]
+
+What it does:
+  install     Write the user unit file from the current launcher path
+  enable      Wire inir.service to the detected compositor service
+  disable     Remove compositor wants links
+  start       Start the user service
+  stop        Stop the user service
+  restart     Restart the user service
+  status      Show systemd status
+  logs        Tail journal logs for the service
+
+Current service state:
+  wiring: $service_state
+  unit: ${systemd_user_dir}/inir.service
+
+This never falls back to graphical-session.target, because that would be
+stupid and start iNiR under desktops that should not touch it.
+EOF
+}
+
+repair_usage() {
+    cat <<'EOF'
+Usage: inir repair [-c PATH]
+
+What it does:
+  1. runs setup doctor inline
+  2. restarts the shell if a graphical session is available
+  3. prints recent logs plus filtered errors
+
+Use this when the shell feels cursed but you do not want to manually chain
+doctor, restart, and log inspection yourself.
 EOF
 }
 
@@ -1277,12 +1441,16 @@ show_logs() {
 run_repair() {
     local dir="$1"
 
+    printf '\n== running doctor ==\n'
     run_setup_inline "$dir" doctor
 
     if [[ -z "${WAYLAND_DISPLAY:-}" && -z "${DISPLAY:-}" && -z "${NIRI_SOCKET:-}" ]]; then
+        printf '\n== no graphical session ==\n'
+        printf 'doctor finished, but restart was skipped because there is no live display.\n'
         return
     fi
 
+    printf '\n== restarting shell ==\n'
     kill_shell "$dir"
     sleep 1
     apply_shell_scale
@@ -1292,6 +1460,7 @@ run_repair() {
         exit 1
     fi
 
+    printf 'repair restart finished\n'
     printf '\n== recent logs ==\n'
     show_logs
     printf '\n== filtered errors ==\n'
@@ -1746,7 +1915,7 @@ run_service_command() {
             exec journalctl --user-unit inir.service "$@"
             ;;
         -h|--help|"")
-            echo "Usage: inir service <install|uninstall|enable|disable|start|stop|restart|status|logs> [args...]" >&2
+            service_usage
             exit 0
             ;;
         *)
@@ -1812,6 +1981,44 @@ show_version() {
         version_file="$local_version_file"
     elif [[ -n "$runtime_version_file" && -f "$runtime_version_file" ]]; then
         version_file="$runtime_version_file"
+    fi
+
+    local live_repo=""
+    live_repo="$(resolve_live_version_context "$version_file" "$runtime_path" || true)"
+
+    if [[ -n "$live_repo" ]]; then
+        local live_version live_commit live_branch
+        live_version="$(tr -d '[:space:]' < "$live_repo/VERSION" 2>/dev/null || echo unknown)"
+        live_commit="$(git -C "$live_repo" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+        live_branch="$(git -C "$live_repo" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+
+        if [[ "$json" == true ]]; then
+            printf '{\n'
+            printf '  "version": "%s",\n' "$live_version"
+            printf '  "commit": "%s",\n' "$live_commit"
+            printf '  "installMode": "repo-link",\n'
+            printf '  "updateStrategy": "repo-setup",\n'
+            printf '  "runtime": "%s",\n' "${runtime_path:-$live_repo}"
+            printf '  "repoPath": "%s",\n' "$live_repo"
+            printf '  "branch": "%s"\n' "${live_branch:-unknown}"
+            printf '}\n'
+            return
+        fi
+
+        printf 'iNiR %s\n' "$live_version"
+        printf 'commit: %s\n' "$live_commit"
+        printf 'install mode: repo-link\n'
+        printf 'update strategy: repo-setup\n'
+        printf 'source: live checkout\n'
+        printf 'runtime: %s\n' "${runtime_path:-$live_repo}"
+        printf 'repo: %s\n' "$live_repo"
+        if [[ -n "$live_branch" ]]; then
+            printf 'branch: %s\n' "$live_branch"
+            if [[ "$live_branch" != "main" && "$live_branch" != "master" ]]; then
+                printf 'note: non-release branch\n'
+            fi
+        fi
+        return
     fi
 
     if [[ -n "$version_file" && -f "$version_file" ]]; then
@@ -2024,7 +2231,7 @@ case "$command_name" in
                     shift 2
                     ;;
                 -h|--help)
-                    usage
+                    repair_usage
                     exit 0
                     ;;
                 *)
@@ -2400,7 +2607,7 @@ case "$command_name" in
                     shift 2
                     ;;
                 -h|--help)
-                    usage
+                    repair_usage
                     exit 0
                     ;;
                 *)
