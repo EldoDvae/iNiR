@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import QtQuick.Layouts
 import QtMultimedia
 import Qt5Compat.GraphicalEffects
@@ -27,6 +28,8 @@ MouseArea {
     
     readonly property bool requirePasswordToPower: Config.options?.lock?.security?.requirePasswordToPower ?? true
     readonly property bool blurEnabled: Config.options?.lock?.blur?.enable ?? true
+    readonly property bool useSafeBlurPipeline: CompositorService.isNiri
+    readonly property real blurAmount: 0.8
     readonly property real blurRadius: Config.options?.lock?.blur?.radius ?? 64
     readonly property real blurZoom: Config.options?.lock?.blur?.extraZoom ?? 1.1
     readonly property bool enableAnimation: Config.options?.lock?.enableAnimation ?? false
@@ -54,7 +57,7 @@ MouseArea {
     // Safe fallback background color (prevents red screen on errors)
     Rectangle {
         anchors.fill: parent
-        color: Appearance.m3colors?.m3background ?? "#1a1a2e"
+        color: Appearance.colors.colLayer0
         z: -1
     }
     
@@ -65,7 +68,7 @@ MouseArea {
         source: root._staticWallpaperPath
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
-        visible: !root.wallpaperIsGif && !root.wallpaperIsVideo
+        visible: !root.wallpaperIsGif && !root.wallpaperIsVideo && !root.useSafeBlurPipeline
         
         layer.enabled: root.blurEnabled
         layer.effect: FastBlur {
@@ -79,13 +82,23 @@ MouseArea {
             yScale: root.blurEnabled ? root.blurZoom : 1
         }
     }
+
+    Image {
+        id: backgroundWallpaperSource
+        anchors.fill: parent
+        source: root.useSafeBlurPipeline && !root.wallpaperIsGif && !root.wallpaperIsVideo ? root._staticWallpaperPath : ""
+        fillMode: Image.PreserveAspectCrop
+        asynchronous: true
+        visible: false
+        z: -2
+    }
     
     // Animated GIF wallpaper
     // Shows first frame when enableAnimation is false, plays when true
     AnimatedImage {
         id: gifWallpaper
         anchors.fill: parent
-        visible: root.wallpaperIsGif
+        visible: root.wallpaperIsGif && !root.useSafeBlurPipeline
         source: root.wallpaperIsGif ? root._wallpaperSource : ""
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
@@ -104,15 +117,27 @@ MouseArea {
             yScale: root.blurEnabled ? root.blurZoom : 1
         }
     }
+
+    AnimatedImage {
+        id: gifWallpaperSource
+        anchors.fill: parent
+        source: root.useSafeBlurPipeline && root.wallpaperIsGif ? root._wallpaperSource : ""
+        fillMode: Image.PreserveAspectCrop
+        asynchronous: true
+        cache: false
+        playing: root.enableAnimation
+        visible: false
+        z: -2
+    }
     
     // Video wallpaper
     // Shows first frame (paused) when enableAnimation is false, plays when true
     Video {
         id: videoWallpaper
         anchors.fill: parent
-        visible: root.wallpaperIsVideo
+        visible: root.wallpaperIsVideo && !root.useSafeBlurPipeline
         source: {
-            if (!root.wallpaperIsVideo || !root._wallpaperSource) return "";
+            if (!root.wallpaperIsVideo || root.useSafeBlurPipeline || !root._wallpaperSource) return "";
             const path = root._wallpaperSource;
             return path.startsWith("file://") ? path : ("file://" + path);
         }
@@ -163,6 +188,65 @@ MouseArea {
             yScale: root.blurEnabled ? root.blurZoom : 1
         }
     }
+
+    Video {
+        id: videoWallpaperSource
+        anchors.fill: parent
+        visible: false
+        z: -2
+        source: {
+            if (!root.useSafeBlurPipeline || !root.wallpaperIsVideo || !root._wallpaperSource) return "";
+            const path = root._wallpaperSource;
+            return path.startsWith("file://") ? path : ("file://" + path);
+        }
+        fillMode: VideoOutput.PreserveAspectCrop
+        loops: MediaPlayer.Infinite
+        muted: true
+        autoPlay: true
+
+        readonly property bool shouldPlay: root.enableAnimation
+
+        function pauseAndShowFirstFrame() {
+            pause()
+            seek(0)
+        }
+
+        onPlaybackStateChanged: {
+            if (playbackState === MediaPlayer.PlayingState && !shouldPlay)
+                pauseAndShowFirstFrame()
+            if (playbackState === MediaPlayer.StoppedState && root.useSafeBlurPipeline && root.wallpaperIsVideo && shouldPlay)
+                play()
+        }
+
+        onShouldPlayChanged: {
+            if (root.useSafeBlurPipeline && root.wallpaperIsVideo) {
+                if (shouldPlay) play()
+                else pauseAndShowFirstFrame()
+            }
+        }
+    }
+
+    MultiEffect {
+        id: backgroundWallpaperSafe
+        anchors.fill: parent
+        source: root.wallpaperIsGif ? gifWallpaperSource
+              : root.wallpaperIsVideo ? videoWallpaperSource
+              : backgroundWallpaperSource
+        visible: root.useSafeBlurPipeline
+        z: -1
+
+        blurEnabled: root.blurEnabled
+        blur: root.blurAmount
+        blurMax: root.blurRadius
+        saturation: 0.5
+
+        transform: Scale {
+            origin.x: backgroundWallpaperSafe.width / 2
+            origin.y: backgroundWallpaperSafe.height / 2
+            xScale: root.blurEnabled ? root.blurZoom : 1
+            yScale: root.blurEnabled ? root.blurZoom : 1
+        }
+    }
     
     // Gradient overlay for better text readability
     Rectangle {
@@ -192,7 +276,7 @@ MouseArea {
     Rectangle {
         id: unlockOverlay
         anchors.fill: parent
-        color: Appearance.m3colors?.m3background ?? "#1a1a2e"
+        color: Appearance.colors.colLayer0
         opacity: 0
         z: 100
         
