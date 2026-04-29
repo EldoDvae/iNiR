@@ -86,8 +86,8 @@ Item {
                             SequentialAnimation on opacity {
                                 running: recordButtonWrapper.isRecording
                                 loops: Animation.Infinite
-                                NumberAnimation { to: 0.4; duration: 800 }
-                                NumberAnimation { to: 1.0; duration: 800 }
+                                NumberAnimation { to: 0.4; duration: Appearance.animation.elementMove.duration * 2 }
+                                NumberAnimation { to: 1.0; duration: Appearance.animation.elementMove.duration * 2 }
                             }
                         }
                     }
@@ -212,8 +212,8 @@ Item {
                         SequentialAnimation on opacity {
                             running: micButton.isInUse && !micButton.isMuted
                             loops: Animation.Infinite
-                            NumberAnimation { to: 0.4; duration: 800 }
-                            NumberAnimation { to: 1.0; duration: 800 }
+                            NumberAnimation { to: 0.4; duration: Appearance.animation.elementMove.duration * 2 }
+                            NumberAnimation { to: 1.0; duration: Appearance.animation.elementMove.duration * 2 }
                         }
                     }
                 }
@@ -272,8 +272,8 @@ Item {
                         SequentialAnimation on opacity {
                             running: screenCastButton.isCasting
                             loops: Animation.Infinite
-                            NumberAnimation { to: 0.4; duration: 800 }
-                            NumberAnimation { to: 1.0; duration: 800 }
+                            NumberAnimation { to: 0.4; duration: Appearance.animation.elementMove.duration * 2 }
+                            NumberAnimation { to: 1.0; duration: Appearance.animation.elementMove.duration * 2 }
                         }
                     }
                 }
