@@ -137,6 +137,7 @@ MouseArea {
         hoverTarget: root
 
         ColumnLayout {
+            anchors.centerIn: parent
             spacing: 6
 
             // Header row — icon + title
