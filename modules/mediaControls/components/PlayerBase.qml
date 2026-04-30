@@ -51,12 +51,8 @@ QtObject {
     
     // Art download management
     property string artDownloadLocation: Directories.coverArt
-    property string artFileName: effectiveArtUrl ? Qt.md5(effectiveArtUrl) : ""
-    property string artFilePath: artFileName ? `${artDownloadLocation}/${artFileName}` : ""
-    property bool downloaded: false
-    readonly property string displayedArtFilePath: downloaded ? Qt.resolvedUrl(artFilePath) : ""
-    property int _downloadRetryCount: 0
-    readonly property int _maxRetries: 3
+    readonly property bool downloaded: artworkResolver.ready
+    readonly property string displayedArtFilePath: artworkResolver.displaySource
     
     // Color extraction
     property var colorQuantizer: ColorQuantizer {
@@ -111,77 +107,17 @@ QtObject {
     }
     
     // Art download logic — mirrors BarMediaPlayerItem (the known-good impl)
-    property string _lastCheckedPath: ""
-
     function checkAndDownloadArt(): void {
-        if (!effectiveArtUrl || !artFilePath) return
-        if (artFilePath === _lastCheckedPath && downloaded) return
-        _lastCheckedPath = artFilePath
-        artExistsChecker.running = true
-    }
-    
-    function retryDownload(): void {
-        if (_downloadRetryCount < _maxRetries && effectiveArtUrl) {
-            _downloadRetryCount++
-            retryTimer.start()
-        }
+        artworkResolver.refresh()
     }
     
     // Internal components
-    property var retryTimer: Timer {
-        interval: 1000 * root._downloadRetryCount
-        repeat: false
-        onTriggered: {
-            if (root.effectiveArtUrl && !root.downloaded) {
-                coverArtDownloader.targetFile = root.effectiveArtUrl
-                coverArtDownloader.artFilePath = root.artFilePath
-                coverArtDownloader.running = true
-            }
-        }
-    }
-    
-    property var artExistsChecker: Process {
-        command: ["/usr/bin/test", "-f", root.artFilePath]
-        onExited: (exitCode, exitStatus) => {
-            if (exitCode !== 0 && exitCode !== 1) return
-            if (exitCode === 0) {
-                root.downloaded = true
-                root._downloadRetryCount = 0
-            } else {
-                coverArtDownloader.targetFile = root.effectiveArtUrl
-                coverArtDownloader.artFilePath = root.artFilePath
-                coverArtDownloader.running = true
-            }
-        }
-    }
-    
-    property var coverArtDownloader: Process {
-        property string targetFile
-        property string artFilePath
-        command: ["/usr/bin/bash", "-c", `
-            target="$1"
-            out="$2"
-            dir="$3"
-            
-            if [ -f "$out" ]; then exit 0; fi
-            mkdir -p "$dir"
-            tmp="$out.tmp"
-            /usr/bin/curl -sSL --connect-timeout 10 --max-time 30 "$target" -o "$tmp" && \
-            [ -s "$tmp" ] && /usr/bin/mv -f "$tmp" "$out" || { rm -f "$tmp"; exit 1; }
-        `, 
-        "_", 
-        targetFile, 
-        artFilePath, 
-        root.artDownloadLocation
-        ]
-        onExited: (exitCode) => {
-            if (exitCode === 0) {
-                root.downloaded = true
-                root._downloadRetryCount = 0
-            } else if (exitCode === 1) {
-                root.retryDownload()
-            }
-        }
+    property var artworkResolver: MediaArtworkResolver {
+        sourceUrl: root.effectiveArtUrl
+        title: root.effectiveTitle
+        artist: root.effectiveArtist
+        album: root.player?.trackAlbum ?? ""
+        cacheDirectory: root.artDownloadLocation
     }
     
     property var positionUpdateTimer: Timer {
@@ -189,18 +125,5 @@ QtObject {
         interval: 1000
         repeat: true
         onTriggered: root.player?.positionChanged()
-    }
-    
-    // Watchers — only react when we have a valid path
-    onArtFilePathChanged: {
-        if (!artFilePath) return
-        _downloadRetryCount = 0
-        checkAndDownloadArt()
-    }
-    
-    onEffectiveArtUrlChanged: {
-        if (!effectiveArtUrl) return
-        _downloadRetryCount = 0
-        checkAndDownloadArt()
     }
 }

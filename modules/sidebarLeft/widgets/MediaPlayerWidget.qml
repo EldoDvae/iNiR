@@ -31,12 +31,8 @@ Item {
     readonly property bool effectiveCanSeek: isYtMusicPlayer ? YtMusic.canSeek : (player?.canSeek ?? false)
     
     property string artDownloadLocation: Directories.coverArt
-    property string artFileName: effectiveArtUrl ? Qt.md5(effectiveArtUrl) : ""
-    property string artFilePath: artFileName ? `${artDownloadLocation}/${artFileName}` : ""
-    property bool downloaded: false
-    property string displayedArtFilePath: downloaded ? Qt.resolvedUrl(artFilePath) : ""
-    property int _downloadRetryCount: 0
-    readonly property int _maxRetries: 3
+    readonly property bool downloaded: artworkResolver.ready
+    property string displayedArtFilePath: artworkResolver.displaySource
 
     // Cava visualizer - using shared CavaProcess component
     CavaProcess {
@@ -46,88 +42,24 @@ Item {
 
     property list<real> visualizerPoints: cavaProcess.points
 
-    property string _lastCheckedPath: ""
     function checkAndDownloadArt() {
-        if (!root.effectiveArtUrl || !artFilePath) return
-        if (artFilePath === _lastCheckedPath && downloaded) return
-        _lastCheckedPath = artFilePath
-        artExistsChecker.running = true
-    }
-
-    function retryDownload() {
-        if (_downloadRetryCount < _maxRetries && root.effectiveArtUrl) {
-            _downloadRetryCount++
-            retryTimer.start()
-        }
-    }
-
-    Timer {
-        id: retryTimer
-        interval: 1000 * root._downloadRetryCount
-        repeat: false
-        onTriggered: {
-            if (root.effectiveArtUrl && !root.downloaded) {
-                coverArtDownloader.targetFile = root.effectiveArtUrl
-                coverArtDownloader.artFilePath = root.artFilePath
-                coverArtDownloader.running = true
-            }
-        }
-    }
-
-    onArtFilePathChanged: {
-        if (!artFilePath) return
-        _downloadRetryCount = 0
-        checkAndDownloadArt()
-    }
-    
-    onEffectiveArtUrlChanged: {
-        if (!effectiveArtUrl) return
-        _downloadRetryCount = 0
-        checkAndDownloadArt()
+        artworkResolver.refresh()
     }
     
     // Re-check cover art when becoming visible
     onVisibleChanged: {
-        if (visible && hasPlayer && artFilePath) {
+        if (visible && hasPlayer) {
             checkAndDownloadArt()
         }
     }
 
-    Process {
-        id: artExistsChecker
-        command: ["/usr/bin/test", "-f", root.artFilePath]
-        onExited: (exitCode, exitStatus) => {
-            if (exitCode !== 0 && exitCode !== 1) return
-            if (exitCode === 0) {
-                root.downloaded = true
-                root._downloadRetryCount = 0
-            } else {
-                coverArtDownloader.targetFile = root.effectiveArtUrl ?? ""
-                coverArtDownloader.artFilePath = root.artFilePath
-                coverArtDownloader.running = true
-            }
-        }
-    }
-
-    Process {
-        id: coverArtDownloader
-        property string targetFile
-        property string artFilePath
-        command: ["/usr/bin/bash", "-c", `
-            if [ -f '${artFilePath}' ]; then exit 0; fi
-            mkdir -p '${root.artDownloadLocation}'
-            tmp='${artFilePath}.tmp'
-            /usr/bin/curl -sSL --connect-timeout 10 --max-time 30 '${targetFile}' -o "$tmp" && \
-            [ -s "$tmp" ] && /usr/bin/mv -f "$tmp" '${artFilePath}' || { rm -f "$tmp"; exit 1; }
-        `]
-        onExited: (exitCode) => {
-            if (exitCode === 0) {
-                root.downloaded = true
-                root._downloadRetryCount = 0
-            } else if (exitCode === 1) {
-                root.retryDownload()
-            }
-        }
+    MediaArtworkResolver {
+        id: artworkResolver
+        sourceUrl: root.effectiveArtUrl
+        title: root.effectiveTitle
+        artist: root.effectiveArtist
+        album: root.player?.trackAlbum ?? ""
+        cacheDirectory: root.artDownloadLocation
     }
 
     ColorQuantizer {
@@ -184,6 +116,7 @@ Item {
             source: root.displayedArtFilePath
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
+            cache: false
             opacity: Appearance.angelEverywhere ? 0.2 : (Appearance.inirEverywhere ? 0.15 : (Appearance.auroraEverywhere ? 0.25 : 0.5))
             visible: root.displayedArtFilePath !== ""
 
@@ -256,6 +189,7 @@ Item {
                     anchors.fill: parent
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
+                    cache: false
                     
                     layer.enabled: Appearance.effectsEnabled
                     layer.effect: MultiEffect {
@@ -290,7 +224,14 @@ Item {
                 Connections {
                     target: root
                     function onDisplayedArtFilePathChanged() {
-                        if (!root.displayedArtFilePath) return
+                        if (!root.displayedArtFilePath) {
+                            blurInTimer.stop()
+                            blurOutTimer.stop()
+                            coverArtContainer.pendingSource = ""
+                            coverArtContainer.transitioning = false
+                            coverArt.source = ""
+                            return
+                        }
                         if (!coverArt.source.toString()) {
                             coverArt.source = root.displayedArtFilePath
                             return

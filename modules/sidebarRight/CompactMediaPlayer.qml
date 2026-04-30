@@ -104,6 +104,7 @@ Item {
             source: playerBase.displayedArtFilePath
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
+            cache: false
             visible: playerBase.displayedArtFilePath !== ""
             opacity: root.artBgOpacity
 

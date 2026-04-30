@@ -516,6 +516,10 @@ Singleton {
 			function onTrackTitleChanged() {
 				root._rebuildPlayerList();
 			}
+
+			function onTrackArtUrlChanged() {
+				root._rebuildPlayerList();
+			}
 		}
 	}
 
@@ -523,6 +527,18 @@ Singleton {
 		target: activePlayer
 
 		function onPostTrackChanged() {
+			root.updateTrack();
+		}
+
+		function onTrackTitleChanged() {
+			root.updateTrack();
+		}
+
+		function onTrackArtistChanged() {
+			root.updateTrack();
+		}
+
+		function onTrackAlbumChanged() {
 			root.updateTrack();
 		}
 

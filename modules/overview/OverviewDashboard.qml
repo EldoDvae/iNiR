@@ -63,52 +63,21 @@ Item {
 
     // ── Cover art download ──
     property string artDownloadLocation: Directories.coverArt
-    property string artFileName: effectiveArtUrl ? Qt.md5(effectiveArtUrl) : ""
-    property string artFilePath: artFileName ? `${artDownloadLocation}/${artFileName}` : ""
-    property bool downloaded: false
-    property string displayedArtFilePath: downloaded ? Qt.resolvedUrl(artFilePath) : ""
-    property int _downloadRetryCount: 0
+    readonly property bool downloaded: artworkResolver.ready
+    property string displayedArtFilePath: artworkResolver.displaySource
 
-    property string _lastCheckedPath: ""
     function checkAndDownloadArt(): void {
-        if (!effectiveArtUrl || !artFilePath) return
-        if (artFilePath === _lastCheckedPath && downloaded) return
-        _lastCheckedPath = artFilePath
-        artExistsChecker.running = true
+        artworkResolver.refresh()
     }
-    onArtFilePathChanged: { if (!artFilePath) return; _downloadRetryCount = 0; checkAndDownloadArt() }
-    onEffectiveArtUrlChanged: { if (!effectiveArtUrl) return; _downloadRetryCount = 0; checkAndDownloadArt() }
 
-    Process {
-        id: artExistsChecker
-        command: ["/usr/bin/test", "-f", root.artFilePath]
-        onExited: (exitCode, exitStatus) => {
-            if (exitCode !== 0 && exitCode !== 1) return
-            if (exitCode === 0) { root.downloaded = true }
-            else {
-                artDownloader.targetFile = root.effectiveArtUrl ?? ""
-                artDownloader.artPath = root.artFilePath
-                artDownloader.running = true
-            }
-        }
+    MediaArtworkResolver {
+        id: artworkResolver
+        sourceUrl: root.effectiveArtUrl
+        title: root.effectiveTitle
+        artist: root.effectiveArtist
+        album: root.player?.trackAlbum ?? ""
+        cacheDirectory: root.artDownloadLocation
     }
-    Process {
-        id: artDownloader
-        property string targetFile
-        property string artPath
-        command: ["/usr/bin/bash", "-c", `
-            if [ -f '${artPath}' ]; then exit 0; fi
-            mkdir -p '${root.artDownloadLocation}'
-            tmp='${artPath}.tmp'
-            /usr/bin/curl -sSL --connect-timeout 8 --max-time 20 '${targetFile}' -o "$tmp" && \
-            [ -s "$tmp" ] && /usr/bin/mv -f "$tmp" '${artPath}' || { rm -f "$tmp"; exit 1; }
-        `]
-        onExited: (exitCode) => {
-            if (exitCode === 0) root.downloaded = true
-            else if (root._downloadRetryCount < 2) { root._downloadRetryCount++; retryTimer.start() }
-        }
-    }
-    Timer { id: retryTimer; interval: 1500; onTriggered: root.checkAndDownloadArt() }
 
     // ── Adaptive colors from album art ──
     ColorQuantizer {
@@ -632,6 +601,7 @@ Item {
                     source: root.downloaded ? root.displayedArtFilePath : ""
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
+                    cache: false
                     visible: root.displayedArtFilePath !== "" && status === Image.Ready
                     opacity: root.inirStyle ? 0.15 : (root.auroraStyle ? 0.25 : 0.4)
                     layer.enabled: Appearance.effectsEnabled
@@ -681,6 +651,7 @@ Item {
                                 source: root.downloaded ? root.displayedArtFilePath : ""
                                 fillMode: Image.PreserveAspectCrop
                                 asynchronous: true
+                                cache: false
                                 sourceSize { width: 192; height: 192 }
                             }
 
