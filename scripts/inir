@@ -74,6 +74,7 @@ Usage: inir <command> [options]
 Quick start:
   inir run               Start the shell
   inir settings          Open settings
+  inir welcome           Re-open the welcome wizard (first-run tour)
   inir restart           Restart the shell
   inir logs              View runtime logs
   inir status            Shell status info
@@ -2597,6 +2598,27 @@ case "$command_name" in
         done
         resolve_config_dir
         open_detached_qml_window "$config_dir" "waffleSettings.qml"
+        ;;
+    welcome)
+        require_qs
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                -c|--config)
+                    parse_config_flag "$@"
+                    shift 2
+                    ;;
+                -h|--help)
+                    usage
+                    exit 0
+                    ;;
+                *)
+                    echo "Unknown option: $1" >&2
+                    exit 1
+                    ;;
+            esac
+        done
+        resolve_config_dir
+        open_detached_qml_window "$config_dir" "welcome.qml"
         ;;
     repair)
         require_qs
