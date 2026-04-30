@@ -51,6 +51,16 @@ Singleton {
     property string updateStepMessage: "" // Human-readable step label
     property string _lastWatchdogStatus: "" // Staleness detection for watchdog
 
+    function clearUpdateProgressUi(): void {
+        updateProgressPoller.running = false
+        updateWatchdog.stop()
+        root.isUpdating = false
+        root.updateStep = 0
+        root.updateTotalSteps = 0
+        root.updateStepMessage = ""
+        root._lastWatchdogStatus = ""
+    }
+
     // Notification tracking (prevent spam)
     property bool initialAvailabilityChecked: false
     property bool initialUpdateCheckDone: false
@@ -317,11 +327,35 @@ Singleton {
     Process {
         id: updateResumeReader
         running: false
-        command: ["cat", Directories.updateStatusPath]
+        command: ["/usr/bin/bash", "-c", `
+            status_file="$1"
+            if [ ! -f "$status_file" ]; then exit 1; fi
+
+            now=$(/usr/bin/date +%s)
+            if read -r uptime _ < /proc/uptime; then
+                uptime_s=$(/usr/bin/printf '%s\n' "$uptime" | /usr/bin/cut -d. -f1)
+            else
+                uptime_s=0
+            fi
+            boot_epoch=$((now - uptime_s))
+            mtime=$(/usr/bin/stat -c %Y "$status_file" 2>/dev/null || echo 0)
+
+            if [ "$mtime" -lt "$boot_epoch" ]; then
+                echo "stale"
+            else
+                /usr/bin/cat "$status_file"
+            fi
+        `, "_", Directories.updateStatusPath]
         stdout: StdioCollector {
             onStreamFinished: {
                 const status = (text ?? "").trim()
                 if (status.length === 0) return
+
+                if (status === "stale") {
+                    print("[ShellUpdates] Clearing stale update-status from previous boot")
+                    clearStatusFileProc.running = true
+                    return
+                }
 
                 if (status === "success") {
                     // Previous update finished cleanly — clear stale marker
@@ -1098,22 +1132,16 @@ Singleton {
                     // Update process exited with error
                     const parts = status.split(":")
                     const code = parts.length > 1 ? parts[1] : "unknown"
-                    updateProgressPoller.running = false
-                    root.isUpdating = false
-                    root.updateStep = 0
-                    root.updateTotalSteps = 0
-                    root.updateStepMessage = ""
+                    root.clearUpdateProgressUi()
                     root.lastError = "Update failed (exit " + code + "). Check " + Directories.updateLogPath + " for details."
+                    clearStatusFileProc.running = true
                     print("[ShellUpdates] Update FAILED with exit code " + code)
                 } else if (status.startsWith("progress:")) {
                     if (status === root._lastWatchdogStatus) {
                         // Same progress marker seen twice — update is stuck
-                        updateProgressPoller.running = false
-                        root.isUpdating = false
-                        root.updateStep = 0
-                        root.updateTotalSteps = 0
-                        root.updateStepMessage = ""
+                        root.clearUpdateProgressUi()
                         root.lastError = "Update stuck at: " + status.split(":").slice(3).join(":") + ". Check " + Directories.updateLogPath + " for details."
+                        clearStatusFileProc.running = true
                         print("[ShellUpdates] Update stuck — same progress seen twice: " + status)
                     } else {
                         // Different progress marker — still moving, extend watchdog
@@ -1123,29 +1151,20 @@ Singleton {
                     }
                 } else if (status === "updating") {
                     // Still running after 120s — likely stuck
-                    updateProgressPoller.running = false
-                    root.isUpdating = false
-                    root.updateStep = 0
-                    root.updateTotalSteps = 0
-                    root.updateStepMessage = ""
+                    root.clearUpdateProgressUi()
                     root.lastError = "Update appears stuck. Check " + Directories.updateLogPath + " for details."
+                    clearStatusFileProc.running = true
                     print("[ShellUpdates] Update appears stuck (still 'updating' after watchdog)")
                 } else if (status === "success") {
                     // Update completed successfully but shell wasn't restarted
-                    updateProgressPoller.running = false
-                    root.isUpdating = false
-                    root.updateStep = 0
-                    root.updateTotalSteps = 0
-                    root.updateStepMessage = ""
+                    root.clearUpdateProgressUi()
+                    clearStatusFileProc.running = true
                     print("[ShellUpdates] Update completed successfully (no restart)")
                 } else {
                     // Empty or unexpected — assume failed
-                    updateProgressPoller.running = false
-                    root.isUpdating = false
-                    root.updateStep = 0
-                    root.updateTotalSteps = 0
-                    root.updateStepMessage = ""
+                    root.clearUpdateProgressUi()
                     root.lastError = "Update outcome unknown. Check " + Directories.updateLogPath + " for details."
+                    clearStatusFileProc.running = true
                     print("[ShellUpdates] Update status unclear: '" + status + "'")
                 }
             }
@@ -1153,11 +1172,7 @@ Singleton {
         onExited: (exitCode, exitStatus) => {
             if (exitCode !== 0 && root.isUpdating) {
                 // Status file doesn't exist — update process may not have started
-                updateProgressPoller.running = false
-                root.isUpdating = false
-                root.updateStep = 0
-                root.updateTotalSteps = 0
-                root.updateStepMessage = ""
+                root.clearUpdateProgressUi()
                 root.lastError = "Update may not have started. Check " + Directories.updateLogPath + " for details."
                 print("[ShellUpdates] Status file not found (cat exited " + exitCode + ")")
             }
