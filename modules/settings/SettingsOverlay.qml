@@ -995,9 +995,10 @@ Scope {
                                 }
                             }
                             StyledToolTip {
+                                position: "left"
                                 text: root.easyMode
-                                    ? Translation.tr("Easy mode — click to show all settings")
-                                    : Translation.tr("Advanced mode — click to switch to Easy mode (essentials only)")
+                                    ? Translation.tr("Easy mode is on. Click to show all settings.")
+                                    : Translation.tr("Advanced mode is on. Click for Easy mode.")
                             }
                         }
 
