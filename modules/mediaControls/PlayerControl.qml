@@ -37,18 +37,18 @@ Item {
     }
     
     function doPrevious(): void {
-        if (isYtMusicPlayer) {
+        if (isYtMusicPlayer && YtMusic.canGoPrevious) {
             YtMusic.playPrevious()
         } else {
-            player?.previous()
+            MprisController.previousForPlayer(root.player)
         }
     }
     
     function doNext(): void {
-        if (isYtMusicPlayer) {
+        if (isYtMusicPlayer && YtMusic.canGoNext) {
             YtMusic.playNext()
         } else {
-            player?.next()
+            MprisController.nextForPlayer(root.player)
         }
     }
     
@@ -57,9 +57,13 @@ Item {
     property real screenY: 0
 
     readonly property string effectiveArtUrl: isYtMusicPlayer ? YtMusic.currentThumbnail : (player?.trackArtUrl ?? "")
+    readonly property string effectiveTitle: isYtMusicPlayer ? YtMusic.currentTitle : (player?.trackTitle ?? "")
+    readonly property string effectiveArtist: isYtMusicPlayer ? YtMusic.currentArtist : (player?.trackArtist ?? "")
     property string artDownloadLocation: Directories.coverArt
     readonly property bool downloaded: artworkResolver.ready
     property string displayedArtFilePath: artworkResolver.displaySource
+    readonly property bool effectiveCanGoPrevious: isYtMusicPlayer ? YtMusic.canGoPrevious : MprisController.canGoPreviousForPlayer(root.player)
+    readonly property bool effectiveCanGoNext: isYtMusicPlayer ? YtMusic.canGoNext : MprisController.canGoNextForPlayer(root.player)
 
     function checkAndDownloadArt() {
         artworkResolver.refresh()
@@ -412,6 +416,7 @@ Item {
 
                     RippleButton {
                         implicitWidth: 32; implicitHeight: 32
+                        enabled: root.effectiveCanGoPrevious
                         buttonRadius: Appearance.inirEverywhere ? Appearance.inir.roundingSmall : Appearance.rounding.full
                         colBackground: "transparent"
                         colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer2Hover
@@ -465,6 +470,7 @@ Item {
 
                     RippleButton {
                         implicitWidth: 32; implicitHeight: 32
+                        enabled: root.effectiveCanGoNext
                         buttonRadius: Appearance.inirEverywhere ? Appearance.inir.roundingSmall : Appearance.rounding.full
                         colBackground: "transparent"
                         colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer2Hover

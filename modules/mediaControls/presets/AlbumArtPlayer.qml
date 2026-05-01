@@ -158,6 +158,8 @@ Item {
                 Item { Layout.fillWidth: true }
                 
                 PlayerControls {
+                    canGoPrevious: playerBase.effectiveCanGoPrevious
+                    canGoNext: playerBase.effectiveCanGoNext
                     isPlaying: playerBase.effectiveIsPlaying
                     buttonSize: 36
                     playButtonSize: 48

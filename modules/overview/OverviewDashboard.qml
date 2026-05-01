@@ -70,6 +70,46 @@ Item {
         artworkResolver.refresh()
     }
 
+    Connections {
+        target: root.player
+
+        function onTrackArtUrlChanged(): void {
+            if (!root.isYtMusic)
+                Qt.callLater(root.checkAndDownloadArt)
+        }
+
+        function onTrackTitleChanged(): void {
+            Qt.callLater(root.checkAndDownloadArt)
+        }
+
+        function onTrackArtistChanged(): void {
+            Qt.callLater(root.checkAndDownloadArt)
+        }
+
+        function onTrackAlbumChanged(): void {
+            Qt.callLater(root.checkAndDownloadArt)
+        }
+    }
+
+    Connections {
+        target: YtMusic
+
+        function onCurrentThumbnailChanged(): void {
+            if (root.isYtMusic)
+                Qt.callLater(root.checkAndDownloadArt)
+        }
+
+        function onCurrentTitleChanged(): void {
+            if (root.isYtMusic)
+                Qt.callLater(root.checkAndDownloadArt)
+        }
+
+        function onCurrentArtistChanged(): void {
+            if (root.isYtMusic)
+                Qt.callLater(root.checkAndDownloadArt)
+        }
+    }
+
     MediaArtworkResolver {
         id: artworkResolver
         sourceUrl: root.effectiveArtUrl
@@ -757,6 +797,7 @@ Item {
                             RippleButton {
                                 implicitWidth: 36
                                 implicitHeight: 36
+                                enabled: MprisController.canGoPrevious
                                 buttonRadius: 18
                                 colBackground: "transparent"
                                 colBackgroundHover: root.mediaHover
@@ -793,6 +834,7 @@ Item {
                             RippleButton {
                                 implicitWidth: 36
                                 implicitHeight: 36
+                                enabled: MprisController.canGoNext
                                 buttonRadius: 18
                                 colBackground: "transparent"
                                 colBackgroundHover: root.mediaHover

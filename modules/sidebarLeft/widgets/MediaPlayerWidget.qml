@@ -354,6 +354,7 @@ Item {
                     RippleButton {
                         implicitWidth: 32
                         implicitHeight: 32
+                        enabled: MprisController.canGoPrevious
                         buttonRadius: Appearance.angelEverywhere ? Appearance.angel.roundingSmall
                             : Appearance.inirEverywhere ? Appearance.inir.roundingSmall : Appearance.rounding.full
                         colBackground: "transparent"
@@ -448,6 +449,7 @@ Item {
                     RippleButton {
                         implicitWidth: 32
                         implicitHeight: 32
+                        enabled: MprisController.canGoNext
                         buttonRadius: Appearance.angelEverywhere ? Appearance.angel.roundingSmall
                             : Appearance.inirEverywhere ? Appearance.inir.roundingSmall : Appearance.rounding.full
                         colBackground: "transparent"

@@ -301,7 +301,8 @@ Item { // Player instance - Old style design
                         }
                         TrackChangeButton {
                             iconName: "skip_previous"
-                            downAction: () => root.player?.previous()
+                            enabled: MprisController.canGoPreviousForPlayer(root.player)
+                            downAction: () => MprisController.previousForPlayer(root.player)
                         }
                         Item {
                             id: progressBarContainer
@@ -352,7 +353,8 @@ Item { // Player instance - Old style design
                         }
                         TrackChangeButton {
                             iconName: "skip_next"
-                            downAction: () => root.player?.next()
+                            enabled: MprisController.canGoNextForPlayer(root.player)
+                            downAction: () => MprisController.nextForPlayer(root.player)
                         }
                     }
 

@@ -48,6 +48,12 @@ QtObject {
     readonly property bool effectiveCanSeek: isYtMusicPlayer 
         ? YtMusic.canSeek 
         : (player?.canSeek ?? false)
+    readonly property bool effectiveCanGoPrevious: isYtMusicPlayer
+        ? YtMusic.canGoPrevious
+        : MprisController.canGoPreviousForPlayer(root.player)
+    readonly property bool effectiveCanGoNext: isYtMusicPlayer
+        ? YtMusic.canGoNext
+        : MprisController.canGoNextForPlayer(root.player)
     
     // Art download management
     property string artDownloadLocation: Directories.coverArt
@@ -83,18 +89,18 @@ QtObject {
     }
     
     function previous(): void {
-        if (isYtMusicPlayer) {
+        if (isYtMusicPlayer && YtMusic.canGoPrevious) {
             YtMusic.playPrevious()
         } else {
-            player?.previous()
+            MprisController.previousForPlayer(root.player)
         }
     }
     
     function next(): void {
-        if (isYtMusicPlayer) {
+        if (isYtMusicPlayer && YtMusic.canGoNext) {
             YtMusic.playNext()
         } else {
-            player?.next()
+            MprisController.nextForPlayer(root.player)
         }
     }
     
@@ -109,6 +115,48 @@ QtObject {
     // Art download logic — mirrors BarMediaPlayerItem (the known-good impl)
     function checkAndDownloadArt(): void {
         artworkResolver.refresh()
+    }
+
+    onPlayerChanged: Qt.callLater(root.checkAndDownloadArt)
+
+    property var playerConnections: Connections {
+        target: root.player
+
+        function onTrackArtUrlChanged(): void {
+            if (!root.isYtMusicPlayer)
+                Qt.callLater(root.checkAndDownloadArt)
+        }
+
+        function onTrackTitleChanged(): void {
+            Qt.callLater(root.checkAndDownloadArt)
+        }
+
+        function onTrackArtistChanged(): void {
+            Qt.callLater(root.checkAndDownloadArt)
+        }
+
+        function onTrackAlbumChanged(): void {
+            Qt.callLater(root.checkAndDownloadArt)
+        }
+    }
+
+    property var ytMusicConnections: Connections {
+        target: YtMusic
+
+        function onCurrentThumbnailChanged(): void {
+            if (root.isYtMusicPlayer)
+                Qt.callLater(root.checkAndDownloadArt)
+        }
+
+        function onCurrentTitleChanged(): void {
+            if (root.isYtMusicPlayer)
+                Qt.callLater(root.checkAndDownloadArt)
+        }
+
+        function onCurrentArtistChanged(): void {
+            if (root.isYtMusicPlayer)
+                Qt.callLater(root.checkAndDownloadArt)
+        }
     }
     
     // Internal components

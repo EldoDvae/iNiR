@@ -332,11 +332,12 @@ Item {
                     RippleButton {
                         implicitWidth: 32
                         implicitHeight: 32
+                        enabled: MprisController.canGoPrevious
                         buttonRadius: Appearance.inirEverywhere ? Appearance.inir.roundingSmall : Appearance.rounding.full
                         colBackground: "transparent"
                         colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer2Hover : ColorUtils.transparentize(blendedColors?.colLayer1 ?? Appearance.colors.colLayer1, 0.5)
                         colRipple: Appearance.inirEverywhere ? Appearance.inir.colLayer2Active : (blendedColors?.colLayer1Active ?? Appearance.colors.colLayer1Active)
-                        onClicked: root.player?.previous()
+                        onClicked: MprisController.previous()
 
                         contentItem: Item {
                             MaterialSymbol {
@@ -377,7 +378,7 @@ Item {
                                 : (root.player?.isPlaying
                                     ? (blendedColors?.colPrimaryActive ?? Appearance.colors.colPrimaryActive)
                                     : (blendedColors?.colSecondaryContainerActive ?? Appearance.colors.colSecondaryContainerActive))
-                        onClicked: root.player?.togglePlaying()
+                        onClicked: MprisController.togglePlaying()
 
                         Behavior on buttonRadius {
                             enabled: Appearance.animationsEnabled && !Appearance.inirEverywhere
@@ -409,11 +410,12 @@ Item {
                     RippleButton {
                         implicitWidth: 32
                         implicitHeight: 32
+                        enabled: MprisController.canGoNext
                         buttonRadius: Appearance.inirEverywhere ? Appearance.inir.roundingSmall : Appearance.rounding.full
                         colBackground: "transparent"
                         colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer2Hover : ColorUtils.transparentize(blendedColors?.colLayer1 ?? Appearance.colors.colLayer1, 0.5)
                         colRipple: Appearance.inirEverywhere ? Appearance.inir.colLayer2Active : (blendedColors?.colLayer1Active ?? Appearance.colors.colLayer1Active)
-                        onClicked: root.player?.next()
+                        onClicked: MprisController.next()
 
                         contentItem: Item {
                             MaterialSymbol {

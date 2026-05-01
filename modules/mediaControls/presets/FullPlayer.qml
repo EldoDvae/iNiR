@@ -247,6 +247,8 @@ Item {
                     Item { Layout.fillWidth: true }
                     
                     PlayerControls {
+                        canGoPrevious: playerBase.effectiveCanGoPrevious
+                        canGoNext: playerBase.effectiveCanGoNext
                         isPlaying: playerBase.effectiveIsPlaying
                         buttonRadius: Appearance.inirEverywhere 
                             ? Appearance.inir.roundingSmall 

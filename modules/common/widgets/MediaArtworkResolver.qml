@@ -23,7 +23,10 @@ QtObject {
     readonly property bool isRemote: root.normalizedSourceUrl.startsWith("http://") || root.normalizedSourceUrl.startsWith("https://")
     readonly property string metadataKey: [root.normalizedSourceUrl, root.title, root.artist, root.album].join("\u001f")
     readonly property string localFilePath: root.isLocalFile ? root._pathFromFileUrl(root.normalizedSourceUrl) : ""
-    readonly property string artFileName: root.isRemote && root.normalizedSourceUrl.length > 0 ? Qt.md5(root.normalizedSourceUrl) : ""
+    readonly property string localCachedArtFileName: root.isLocalFile && root.localFilePath.length > 0 ? root._cacheFileName(root.metadataKey, root.localFilePath) : ""
+    readonly property string localCachedArtFilePath: root.localCachedArtFileName.length > 0 ? `${root.cacheDirectory}/${root.localCachedArtFileName}` : ""
+    readonly property bool localFileInCache: root.localFilePath.length > 0 && root.localFilePath.startsWith(`${root.cacheDirectory}/`)
+    readonly property string artFileName: root.isRemote && root.normalizedSourceUrl.length > 0 ? root._cacheFileName(root.metadataKey, root.normalizedSourceUrl) : ""
     readonly property string artFilePath: root.artFileName.length > 0 ? `${root.cacheDirectory}/${root.artFileName}` : ""
 
     property int _generation: 0
@@ -31,6 +34,8 @@ QtObject {
     readonly property int _maxRetries: 3
     property int _localReloadsLeft: 0
     property bool _completed: false
+    property string _pendingDisplaySource: ""
+    property int _pendingDisplayGeneration: 0
 
     function _normalizeUrl(url): string {
         if (!url)
@@ -53,8 +58,19 @@ QtObject {
         if (!url.startsWith("file://"))
             return "";
 
-        const path = url.replace(/^file:\/\/localhost/, "").replace(/^file:\/\//, "");
+        const cleanUrl = url.split("?")[0].split("#")[0];
+        const path = cleanUrl.replace(/^file:\/\/localhost/, "").replace(/^file:\/\//, "");
         return decodeURIComponent(path.startsWith("/") ? path : "/" + path);
+    }
+
+    function _cacheFileName(key: string, path: string): string {
+        return `${Qt.md5(key)}${root._imageExtension(path)}`;
+    }
+
+    function _imageExtension(path: string): string {
+        const cleanPath = (path ?? "").toLowerCase().split("?")[0].split("#")[0];
+        const match = cleanPath.match(/\.(png|jpe?g|webp|gif|bmp|svg)$/);
+        return match ? match[0] : ".jpg";
     }
 
     function _cacheBust(url: string): string {
@@ -71,8 +87,24 @@ QtObject {
 
     function _setReadySource(url: string): void {
         root._generation += 1;
+        const generation = root._generation;
+        const value = url.toString();
+        const nextSource = root._cacheBust(value);
+
+        if (value.startsWith("file://")) {
+            root._pendingDisplaySource = nextSource;
+            root._pendingDisplayGeneration = generation;
+            if (!root.displaySource.length)
+                root.ready = false;
+            fileSourcePublishTimer.restart();
+            return;
+        }
+
+        if (root.ready && root.displaySource === nextSource)
+            return;
+
         root.ready = true;
-        root.displaySource = root._cacheBust(url);
+        root.displaySource = nextSource;
     }
 
     function _stopWorkers(): void {
@@ -81,23 +113,43 @@ QtObject {
 
         artExistsChecker.running = false;
         artworkDownloader.running = false;
+        localFileCacher.running = false;
         localExistsChecker.running = false;
         retryTimer.stop();
         localReloadTimer.stop();
+        fileSourcePublishTimer.stop();
     }
 
-    function _reset(): void {
+    function _reset(preserveDisplay: bool): void {
         root._stopWorkers();
-        root.ready = false;
-        root.displaySource = "";
+        if (preserveDisplay) {
+            root.ready = root.displaySource.length > 0;
+        } else {
+            root.ready = false;
+            root.displaySource = "";
+        }
+        root._pendingDisplaySource = "";
+        root._pendingDisplayGeneration = 0;
         root._retryCount = 0;
         root._localReloadsLeft = root.localReloadPasses;
+    }
+
+    function _publishLocalFile(): void {
+        if (root.localFileInCache || !root.localCachedArtFilePath.length) {
+            root._setReadySource(root.normalizedSourceUrl);
+            return;
+        }
+
+        localFileCacher.sourceFilePath = root.localFilePath;
+        localFileCacher.artFilePath = root.localCachedArtFilePath;
+        localFileCacher.running = false;
+        localFileCacher.running = true;
     }
 
     function refresh(): void {
         const url = root.normalizedSourceUrl;
         if (!url.length) {
-            root._reset();
+            root._reset(false);
             return;
         }
 
@@ -132,7 +184,7 @@ QtObject {
         if (!root._completed)
             return;
 
-        root._reset();
+        root._reset(root.normalizedSourceUrl.length > 0);
         root.refresh();
     }
 
@@ -140,7 +192,7 @@ QtObject {
         if (!root._completed)
             return;
 
-        root._reset();
+        root._reset(false);
         root.refresh();
     }
 
@@ -161,6 +213,18 @@ QtObject {
         }
     }
 
+    property var fileSourcePublishTimer: Timer {
+        interval: 80
+        repeat: false
+        onTriggered: {
+            if (root._pendingDisplayGeneration !== root._generation || !root._pendingDisplaySource.length)
+                return;
+
+            root.ready = true;
+            root.displaySource = root._pendingDisplaySource;
+        }
+    }
+
     property var retryTimer: Timer {
         interval: 350 * Math.max(1, root._retryCount)
         repeat: false
@@ -178,12 +242,41 @@ QtObject {
             if (filePath !== root.localFilePath)
                 return;
 
-            if (exitCode === 0)
-                root._setReadySource(root.normalizedSourceUrl);
-
-            if (root._localReloadsLeft > 0) {
+            if (exitCode === 0) {
+                root._localReloadsLeft = 0;
+                root._publishLocalFile();
+            } else if (root._localReloadsLeft > 0) {
                 root._localReloadsLeft -= 1;
                 localReloadTimer.restart();
+            }
+        }
+    }
+
+    property var localFileCacher: Process {
+        property string sourceFilePath: ""
+        property string artFilePath: ""
+
+        command: ["/usr/bin/bash", "-c", `
+            src="$1"
+            out="$2"
+            dir="$3"
+            if [ -z "$src" ] || [ -z "$out" ]; then exit 1; fi
+            if [ "$src" = "$out" ]; then exit 0; fi
+            [ -s "$src" ] || exit 1
+            mkdir -p "$dir"
+            tmp="$out.tmp.$$"
+            /usr/bin/cp -f -- "$src" "$tmp" && \
+            [ -s "$tmp" ] && /usr/bin/mv -f "$tmp" "$out" || { rm -f "$tmp"; exit 1; }
+        `, "_", sourceFilePath, artFilePath, root.cacheDirectory]
+
+        onExited: (exitCode) => {
+            if (sourceFilePath !== root.localFilePath || artFilePath !== root.localCachedArtFilePath)
+                return;
+
+            if (exitCode === 0) {
+                root._setReadySource(Qt.resolvedUrl(artFilePath));
+            } else if (!root.displaySource.length) {
+                root.ready = false;
             }
         }
     }
@@ -219,7 +312,7 @@ QtObject {
             out="$2"
             dir="$3"
             if [ -z "$target" ] || [ -z "$out" ]; then exit 1; fi
-            if [ -f "$out" ]; then exit 0; fi
+            if [ -s "$out" ]; then exit 0; fi
             mkdir -p "$dir"
             tmp="$out.tmp.$$"
             /usr/bin/curl -sSL --connect-timeout 4 --max-time 12 "$target" -o "$tmp" && \
