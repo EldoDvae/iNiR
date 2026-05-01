@@ -36,6 +36,7 @@ QtObject {
     property bool _completed: false
     property string _pendingDisplaySource: ""
     property int _pendingDisplayGeneration: 0
+    property int _pendingDisplayChecksLeft: 0
 
     function _normalizeUrl(url): string {
         if (!url)
@@ -80,6 +81,12 @@ QtObject {
         const value = url.toString();
         if (value.startsWith("data:"))
             return value;
+        if (value.startsWith("file://")) {
+            const filePath = root._pathFromFileUrl(value);
+            const cacheDir = root.cacheDirectory.endsWith("/") ? root.cacheDirectory.slice(0, -1) : root.cacheDirectory;
+            if (filePath.length > 0 && cacheDir.length > 0 && filePath.startsWith(`${cacheDir}/`))
+                return value;
+        }
 
         const separator = value.indexOf("?") >= 0 ? "&" : "?";
         return `${value}${separator}inir_art=${Qt.md5(root.metadataKey + ":" + root._generation)}`;
@@ -94,8 +101,10 @@ QtObject {
         if (value.startsWith("file://")) {
             root._pendingDisplaySource = nextSource;
             root._pendingDisplayGeneration = generation;
+            root._pendingDisplayChecksLeft = 5;
             if (!root.displaySource.length)
                 root.ready = false;
+            fileSourceReadyChecker.running = false;
             fileSourcePublishTimer.restart();
             return;
         }
@@ -115,6 +124,7 @@ QtObject {
         artworkDownloader.running = false;
         localFileCacher.running = false;
         localExistsChecker.running = false;
+        fileSourceReadyChecker.running = false;
         retryTimer.stop();
         localReloadTimer.stop();
         fileSourcePublishTimer.stop();
@@ -130,6 +140,7 @@ QtObject {
         }
         root._pendingDisplaySource = "";
         root._pendingDisplayGeneration = 0;
+        root._pendingDisplayChecksLeft = 0;
         root._retryCount = 0;
         root._localReloadsLeft = root.localReloadPasses;
     }
@@ -214,14 +225,52 @@ QtObject {
     }
 
     property var fileSourcePublishTimer: Timer {
-        interval: 80
+        interval: 120
         repeat: false
         onTriggered: {
             if (root._pendingDisplayGeneration !== root._generation || !root._pendingDisplaySource.length)
                 return;
 
-            root.ready = true;
-            root.displaySource = root._pendingDisplaySource;
+            fileSourceReadyChecker.filePath = root._pathFromFileUrl(root._pendingDisplaySource);
+            fileSourceReadyChecker.checkedGeneration = root._pendingDisplayGeneration;
+            fileSourceReadyChecker.running = false;
+            fileSourceReadyChecker.running = true;
+        }
+    }
+
+    property var fileSourceReadyChecker: Process {
+        property string filePath: ""
+        property int checkedGeneration: 0
+
+        command: ["/usr/bin/bash", "-c", `
+            path="$1"
+            if [ -z "$path" ]; then exit 1; fi
+            [ -s "$path" ] || exit 1
+            size1=$(/usr/bin/stat -c%s -- "$path" 2>/dev/null) || exit 1
+            /usr/bin/sleep 0.2
+            [ -s "$path" ] || exit 1
+            size2=$(/usr/bin/stat -c%s -- "$path" 2>/dev/null) || exit 1
+            [ "$size1" = "$size2" ] || exit 1
+        `, "_", filePath]
+
+        onExited: (exitCode, exitStatus) => {
+            if (checkedGeneration !== root._pendingDisplayGeneration || checkedGeneration !== root._generation)
+                return;
+            if (filePath !== root._pathFromFileUrl(root._pendingDisplaySource))
+                return;
+
+            if (exitCode === 0) {
+                root.ready = true;
+                root.displaySource = root._pendingDisplaySource;
+                root._pendingDisplaySource = "";
+                root._pendingDisplayGeneration = 0;
+                root._pendingDisplayChecksLeft = 0;
+            } else if (root._pendingDisplayChecksLeft > 0) {
+                root._pendingDisplayChecksLeft -= 1;
+                fileSourcePublishTimer.restart();
+            } else if (!root.displaySource.length) {
+                root.ready = false;
+            }
         }
     }
 
