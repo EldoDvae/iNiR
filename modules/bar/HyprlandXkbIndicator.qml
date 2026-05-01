@@ -45,7 +45,6 @@ Loader {
                 text: KeyboardIndicators.currentLayoutCodeInline
                 font.pixelSize: Appearance.font.pixelSize.small
                 color: root.color
-                animateChange: true
             }
         }
 
@@ -79,7 +78,6 @@ Loader {
                 text: KeyboardIndicators.currentLayoutCodeMultiline
                 font.pixelSize: text.includes("\n") ? Appearance.font.pixelSize.smallie : Appearance.font.pixelSize.small
                 color: root.color
-                animateChange: true
             }
         }
     }

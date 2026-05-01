@@ -33,10 +33,10 @@ Singleton {
     readonly property bool showPanel: Config.options?.keyboardIndicators?.showPanel ?? true
     readonly property bool showLayoutPopup: root.showPopup && (Config.options?.keyboardIndicators?.popup?.layout ?? true)
     readonly property bool showCapsPopup: root.showPopup && (Config.options?.keyboardIndicators?.popup?.caps ?? true)
-    readonly property bool showNumPopup: root.showPopup && (Config.options?.keyboardIndicators?.popup?.num ?? true)
+    readonly property bool showNumPopup: root.showPopup && (Config.options?.keyboardIndicators?.popup?.num ?? false)
     readonly property bool showLayoutPanel: root.showPanel && (Config.options?.keyboardIndicators?.panel?.layout ?? true)
     readonly property bool showCapsPanel: root.showPanel && (Config.options?.keyboardIndicators?.panel?.caps ?? true)
-    readonly property bool showNumPanel: root.showPanel && (Config.options?.keyboardIndicators?.panel?.num ?? true)
+    readonly property bool showNumPanel: root.showPanel && (Config.options?.keyboardIndicators?.panel?.num ?? false)
     readonly property bool hasMultipleLayouts: (HyprlandXkb.layoutCodes?.length ?? 0) > 1
     readonly property string currentLayoutName: HyprlandXkb.currentLayoutName ?? ""
     readonly property string currentLayoutCode: HyprlandXkb.currentLayoutCode ?? ""
@@ -96,10 +96,8 @@ Singleton {
 
     function _setEvdevState(nextCapsValue, nextNumValue, allowPopup) {
         root._lockSource = "evdev";
-        root._numLockReliable = true;
-        root._lastRawNumLockState = nextNumValue;
         root._setCapsLockValue(nextCapsValue, allowPopup);
-        root._setNumLockValue(nextNumValue, allowPopup);
+        root._setNumLockRawValue(nextNumValue, allowPopup);
     }
 
     function _handleEvdevOutput(rawLine) {
@@ -225,6 +223,22 @@ Singleton {
         root._recomputeLockState(kind, false);
     }
 
+    function _setNumLockRawValue(nextValue, allowPopup) {
+        const previousVisibleValue = root._numLockReliable ? root.numLock : root._lastRawNumLockState;
+
+        if (root._lastRawNumLockState === null) {
+            root._lastRawNumLockState = nextValue;
+            root._numLockReliable = !nextValue;
+        } else if (nextValue !== root._lastRawNumLockState) {
+            root._lastRawNumLockState = nextValue;
+            root._numLockReliable = true;
+        }
+
+        root._setNumLockValue(root._numLockReliable ? nextValue : false, false);
+        if (root._numLockReliable && allowPopup && previousVisibleValue !== null && previousVisibleValue !== root.numLock)
+            root._emitLockPopup("num", root.numLock);
+    }
+
     function _recomputeLockState(kind, allowPopup) {
         const paths = kind === "caps" ? root.capsLockPaths : root.numLockPaths;
         const states = kind === "caps" ? root._capsLockStates : root._numLockStates;
@@ -246,19 +260,7 @@ Singleton {
             return;
         }
 
-        const previousVisibleValue = root._numLockReliable ? root.numLock : root._lastRawNumLockState;
-
-        if (root._lastRawNumLockState === null) {
-            root._lastRawNumLockState = nextValue;
-            root._numLockReliable = !nextValue;
-        } else if (nextValue !== root._lastRawNumLockState) {
-            root._lastRawNumLockState = nextValue;
-            root._numLockReliable = true;
-        }
-
-        root.numLock = root._numLockReliable ? nextValue : false;
-        if (root._numLockReliable && allowPopup && previousVisibleValue !== null && previousVisibleValue !== root.numLock)
-            root._emitLockPopup(kind, root.numLock);
+        root._setNumLockRawValue(nextValue, allowPopup);
     }
 
     Process {

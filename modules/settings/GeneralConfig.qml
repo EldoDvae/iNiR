@@ -675,7 +675,7 @@ ContentPage {
             SettingsSwitch {
                 buttonIcon: "dialpad"
                 text: Translation.tr("Num Lock popup")
-                checked: Config.options?.keyboardIndicators?.popup?.num ?? true
+                checked: Config.options?.keyboardIndicators?.popup?.num ?? false
                 onCheckedChanged: Config.setNestedValue("keyboardIndicators.popup.num", checked)
                 StyledToolTip {
                     text: Translation.tr("Show a popup when Num Lock changes")
@@ -715,7 +715,7 @@ ContentPage {
             SettingsSwitch {
                 buttonIcon: "dialpad"
                 text: Translation.tr("Num Lock indicator")
-                checked: Config.options?.keyboardIndicators?.panel?.num ?? true
+                checked: Config.options?.keyboardIndicators?.panel?.num ?? false
                 onCheckedChanged: Config.setNestedValue("keyboardIndicators.panel.num", checked)
                 StyledToolTip {
                     text: Translation.tr("Show Num Lock in the bar or taskbar")

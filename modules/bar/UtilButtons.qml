@@ -152,7 +152,7 @@ Item {
         Loader {
             active: (Config.options?.bar?.utilButtons?.showKeyboardLayoutSwitch ?? false)
                     && CompositorService.isNiri
-                    && NiriService.keyboardLayoutNames.length > 1
+                    && NiriService.hasMultipleKeyboardLayouts
             visible: active
             sourceComponent: CircleUtilButton {
                 Layout.alignment: Qt.AlignVCenter

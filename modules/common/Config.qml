@@ -933,12 +933,12 @@ Singleton {
                 property JsonObject popup: JsonObject {
                     property bool layout: true
                     property bool caps: true
-                    property bool num: true
+                    property bool num: false
                 }
                 property JsonObject panel: JsonObject {
                     property bool layout: true
                     property bool caps: true
-                    property bool num: true
+                    property bool num: false
                 }
             }
 

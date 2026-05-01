@@ -637,7 +637,7 @@ Item { // Bar content region
                     }
                     HyprlandXkbIndicator {
                         Layout.alignment: Qt.AlignVCenter
-                        Layout.rightMargin: indicatorsRowLayout.realSpacing
+                        Layout.rightMargin: KeyboardIndicators.hasPanelIndicators ? indicatorsRowLayout.realSpacing : 0
                         color: rightSidebarButton.colText
                     }
                     Revealer {

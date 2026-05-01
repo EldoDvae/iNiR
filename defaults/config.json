@@ -1059,12 +1059,12 @@
     "popup": {
       "layout": true,
       "caps": true,
-      "num": true
+      "num": false
     },
     "panel": {
       "layout": true,
       "caps": true,
-      "num": true
+      "num": false
     }
   },
   "reloadToasts": {
