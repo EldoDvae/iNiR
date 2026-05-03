@@ -442,14 +442,14 @@ fi
 if ! command -v awww &>/dev/null; then
   log_info "Installing awww (wallpaper daemon)..."
   if command -v cargo &>/dev/null; then
-    sudo dnf install -y lz4-devel
-    if cargo install --git https://codeberg.org/LGFae/awww.git awww 2>/dev/null; then
+    sudo dnf install -y lz4-devel wayland-protocols-devel wayland-devel
+    if cargo install --git https://codeberg.org/LGFae/awww.git awww awww-daemon 2>/dev/null; then
       log_success "awww installed via Cargo"
     else
-      log_warning "awww build failed — install manually: cargo install --git https://codeberg.org/LGFae/awww.git awww"
+      log_warning "awww build failed — install manually: cargo install --git https://codeberg.org/LGFae/awww.git awww awww-daemon"
     fi
   else
-    log_warning "awww requires Rust — install Rust first, then: cargo install --git https://codeberg.org/LGFae/awww.git awww"
+    log_warning "awww requires Rust — install Rust first, then: cargo install --git https://codeberg.org/LGFae/awww.git awww awww-daemon"
     log_info "Installing Rust can be done through this command from the official website: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
   fi
 fi
