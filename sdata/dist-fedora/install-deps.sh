@@ -70,16 +70,20 @@ if [[ -n "${ONLY_MISSING_DEPS:-}" ]]; then
       *) v sudo dnf upgrade -y --refresh ;;
     esac
 
-    # quickshell and niri come from COPR on Fedora; ensure repos are enabled
+    # quickshell, starship and gowall come from COPR on Fedora; ensure repos are enabled
     if [[ " ${_fed_miss_pkgs[*]} " == *" quickshell " ]]; then
       dnf copr list --enabled 2>/dev/null | grep -q "errornointernet/quickshell" || \
         v sudo dnf copr enable -y errornointernet/quickshell
     fi
-    if [[ " ${_fed_miss_pkgs[*]} " == *" niri " ]]; then
-      dnf copr list --enabled 2>/dev/null | grep -q "yalter/niri" || \
-        v sudo dnf copr enable -y yalter/niri
+    if [[ " ${_fed_miss_pkgs[*]} " == *" starship " ]]; then
+      dnf copr list --enabled 2>/dev/null | grep -q "atim/starship" || \
+        v sudo dnf copr enable -y atim/starship
     fi
-
+    if [[ " ${_fed_miss_pkgs[*]} " == *" gowall " ]]; then
+      dnf copr list --enabled 2>/dev/null | grep -q "achno/gowall" || \
+        v sudo dnf copr enable -y achno/gowall
+    fi
+    
     v sudo dnf install $_fed_installflags "${_fed_miss_pkgs[@]}"
   fi
 
@@ -114,10 +118,22 @@ if ! dnf copr list --enabled 2>/dev/null | grep -q "errornointernet/quickshell";
   }
 fi
 
-# Niri compositor
-if ! dnf copr list --enabled 2>/dev/null | grep -q "yalter/niri"; then
-  log_info "Enabling Niri COPR..."
-  v sudo dnf copr enable -y yalter/niri
+# Starship CLI tool
+if ! dnf copr list --enabled 2>/dev/null | grep -q "atim/starship"; then
+  log_info "Enabling Starship COPR (precompiled)..."
+  v sudo dnf copr enable -y atim/starship || {
+    log_error "Failed to enable Starship COPR — install manually:"
+    log_warning "https://copr.fedorainfracloud.org/coprs/atim/starship/"
+  }
+fi
+
+# gowall - Wallpaper effects editor
+if ! dnf copr list --enabled 2>/dev/null | grep -q "achno/gowall"; then
+  log_info "Enabling Gowall COPR (precompiled)..."
+  v sudo dnf copr enable achno/gowall || {
+    log_error "Failed to enable Gowall COPR — install manually:"
+    log_warning "https://copr.fedorainfracloud.org/coprs/achno/gowall/"
+  }
 fi
 
 #####################################################################################
@@ -141,13 +157,7 @@ fi
 tui_info "Installing packages from repositories..."
 
 # Core system packages (including Quickshell and Niri from COPR)
-FEDORA_CORE_PKGS=(
-  # Quickshell (from COPR - no compilation needed!)
-  quickshell
-  
-  # Niri compositor (from COPR)
-  niri
-  
+FEDORA_CORE_PKGS=(  
   # Build tools (needed for Python packages like dbus-python, pycairo, pygobject)
   gcc
   gcc-c++
@@ -177,20 +187,18 @@ FEDORA_CORE_PKGS=(
   wl-clipboard
   libnotify
   wlsunset
-  dunst
+  uv
+  unzip
   
   # XDG Portals
   xdg-desktop-portal
-  xdg-desktop-portal-gtk
-  xdg-desktop-portal-gnome
   
   # Polkit
   polkit
   
   # Network
   NetworkManager
-  gnome-keyring
-  
+    
   # File manager
   nautilus
   
@@ -199,10 +207,12 @@ FEDORA_CORE_PKGS=(
   
   # Shell (required for scripts)
   fish
-  
-  # System monitor (not available in all Fedora versions)
-  # mission-center
-  
+
+  # Power management - tuned is default
+  tuned
+  tuned-gtk
+  tuned-ppd
+    
   # Thumbnails
   ffmpegthumbnailer
   tumbler
@@ -224,9 +234,10 @@ FEDORA_QT6_PKGS=(
   qt6-qtpositioning
   qt6-qtsensors
   qt6-qttools
+  qt6-qttranslations
+  qt6-qtquicktimeline
   
   # System libs
-  jemalloc
   libxcb
   libdrm
   mesa-dri-drivers
@@ -235,20 +246,26 @@ FEDORA_QT6_PKGS=(
   kf6-kirigami
   kdialog
   kf6-syntax-highlighting
+  kdecoration
   
   # Qt theming
   qt6ct
   kde-gtk-config
   breeze-gtk
+
+  # sddm
+  sddm
+)
+
+FEDORA_QT_PKGS_2=(
+  plasma-integration
 )
 
 # Audio packages
 FEDORA_AUDIO_PKGS=(
-  pipewire
-  pipewire-pulseaudio
-  pipewire-alsa
-  wireplumber
   playerctl
+  playerctl-libs
+  libdbusmenu
   libdbusmenu-gtk3
   pavucontrol
   cava
@@ -260,7 +277,9 @@ FEDORA_AUDIO_PKGS=(
 
 # Toolkit packages
 FEDORA_TOOLKIT_PKGS=(
-  upower
+  gum
+  eza
+  starship
   wtype
   ydotool
   python3-evdev
@@ -313,16 +332,46 @@ FEDORA_FONT_PKGS=(
   papirus-icon-theme
 )
 
+#####################################################################################
+# Ensuring no conflicts with noctalia-qs, quickshell-git and niri-git
+# If noctalia-qs present, replace with quickshell
+# If quickshell-git present, proceed normally
+#####################################################################################
+QS_INSTALL=false
+if rpm -q noctalia-qs &>/dev/null; then
+  log_info "noctalia-qs present. iNir needs quickshell (preferable) or quickshell-git. Removing?"
+  if ! sudo dnf remove noctalia-qs; then
+    log_warning "noctalia-qs not removed. There may be problems with running iNir with noctalia-qs"
+  else
+    QS_INSTALL=true
+  fi
+fi
+if ! rpm -q quickshell-git &>/dev/null; then
+  QS_INSTALL=true
+fi
+
 installflags=""
 $ask || installflags="-y --skip-unavailable"
 
+# Install core packages. Need weak deps, in case dnf is configured to always exclude weak deps.
+log_info "Installing Quickshell and Niri "
+if $QS_INSTALL; then
+  v sudo dnf install quickshell niri --setopt=install_weak_deps=True --skip-unavailable
+else
+  log_warning "Could not install Quickshell"
+  v sudo dnf install niri --setopt=install_weak_deps=True --skip-unavailable
+fi
+
 # Install core packages
-log_info "Installing core packages (Quickshell + Niri)..."
+log_info "Installing core packages (Build tools)..."
 v sudo dnf install $installflags "${FEDORA_CORE_PKGS[@]}"
 
 # Install Qt6 packages
 log_info "Installing Qt6 packages..."
 v sudo dnf install $installflags "${FEDORA_QT6_PKGS[@]}"
+
+log_info "Installing Qt6 packages (2)..."
+v sudo dnf install --setopt=install_weak_deps=False "${FEDORA_QT_PKGS_2[@]}"
 
 # Install based on flags
 if ${INSTALL_AUDIO:-true}; then
@@ -413,28 +462,12 @@ install_github_binary() {
   rm -rf "$temp_dir"
 }
 
-# gum - TUI tool (download .rpm from GitHub)
-if ! command -v gum &>/dev/null; then
-  log_info "Installing gum from GitHub..."
-  GUM_RPM_URL=$(curl -s "https://api.github.com/repos/charmbracelet/gum/releases/latest" | \
-    jq -r '.assets[] | select(.name | test("linux.*x86_64.*rpm$")) | .browser_download_url' | head -1)
-  if [[ -n "$GUM_RPM_URL" && "$GUM_RPM_URL" != "null" ]]; then
-    v sudo dnf install -y "$GUM_RPM_URL"
-  fi
-fi
-
 # cliphist - clipboard manager
-install_github_binary "cliphist" "sentriz/cliphist" "linux-amd64$"
-
-# xwayland-satellite - X11 compatibility (try cargo-binstall first)
-if ! command -v xwayland-satellite &>/dev/null; then
-  log_info "Installing xwayland-satellite..."
-  if command -v cargo-binstall &>/dev/null; then
-    cargo-binstall -y xwayland-satellite
-  elif command -v cargo &>/dev/null; then
-    cargo install xwayland-satellite
-  else
-    log_warning "xwayland-satellite requires Rust — install with: cargo install xwayland-satellite"
+if ! command -v cliphist &>/dev/null; then
+  log_info "Installing cliphist from official repo...."
+  if ! sudo dnf install -y cliphist; then # Cliphist available on fedra 44
+    log_warn "dnf install failed, falling back to GitHub binary..."
+    install_github_binary "cliphist" "sentriz/cliphist" "linux-amd64$"
   fi
 fi
 
@@ -442,14 +475,14 @@ fi
 if ! command -v awww &>/dev/null; then
   log_info "Installing awww (wallpaper daemon)..."
   if command -v cargo &>/dev/null; then
-    sudo dnf install -y lz4-devel
-    if cargo install --git https://codeberg.org/LGFae/awww.git awww 2>/dev/null; then
+    sudo dnf install -y lz4-devel wayland-protocols-devel wayland-devel
+    if cargo install --git https://codeberg.org/LGFae/awww.git awww awww-daemon 2>/dev/null; then
       log_success "awww installed via Cargo"
     else
-      log_warning "awww build failed — install manually: cargo install --git https://codeberg.org/LGFae/awww.git awww"
+      log_warning "awww build failed — install manually: cargo install --git https://codeberg.org/LGFae/awww.git awww awww-daemon"
     fi
   else
-    log_warning "awww requires Rust — install Rust first, then: cargo install --git https://codeberg.org/LGFae/awww.git awww"
+    log_warning "awww requires Rust — install Rust first, then: cargo install --git https://codeberg.org/LGFae/awww.git awww awww-daemon"
     log_info "Installing Rust can be done through this command from the official website: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
   fi
 fi
@@ -476,20 +509,11 @@ if ${INSTALL_FONTS:-true}; then
 fi
 
 #####################################################################################
-# Install uv (Python package manager)
+# Install pythong runtime 3.12
 #####################################################################################
-tui_info "Installing uv (Python package manager)..."
-if ! command -v uv &>/dev/null; then
-  # Try the official installer first (fastest)
-  curl -LsSf https://astral.sh/uv/install.sh | sh 2>/dev/null || {
-    # Fallback to cargo
-    if command -v cargo &>/dev/null; then
-      cargo install uv
-    else
-      log_warning "Could not install uv. Install manually: https://github.com/astral-sh/uv"
-    fi
-  }
-fi
+
+tui_info "Installing python runtime 3.12"
+uv python install 3.12
 
 #####################################################################################
 # Install critical fonts
@@ -548,6 +572,47 @@ if ! fc-list | grep -qi "JetBrainsMono Nerd"; then
   rm -rf "$TEMP_DIR"
 fi
 
+# Roboto Flex 
+if ! fc-list | grep -qi "Roboto Flex"; then
+  log_info "Downloading Roboto Flex Font..."
+  
+  NERD_FONTS_URL="https://github.com/googlefonts/roboto-flex/releases/download/3.200/roboto-flex-fonts.zip"
+  TEMP_DIR="/tmp/fonts-$$"
+  mkdir -p "$TEMP_DIR"
+  
+  if curl -fsSL -o "$TEMP_DIR/RobotoFlex.zip" "$NERD_FONTS_URL"; then
+    unzip -o "$TEMP_DIR/RobotoFlex.zip" -d "$FONT_DIR" >/dev/null 2>&1
+    mv $FONT_DIR/roboto-flex-fonts/fonts/variable/* $FONT_DIR
+    rm -rf $FONT_DIR/roboto-flex-fonts
+    fc-cache -f "$FONT_DIR"
+    log_success "Roboto Flex installed"
+  else
+    log_warning "Could not download Roboto Flex"
+  fi
+  
+  rm -rf "$TEMP_DIR"
+fi
+
+# Oxanium
+if ! fc-list | grep -qi "Oxanium"; then
+  log_info "Downloading Oxanium Font..."
+  
+  NERD_FONTS_URL="https://github.com/sevmeyer/oxanium/releases/download/2.000/oxanium-2.000.zip"
+  TEMP_DIR="/tmp/fonts-$$"
+  mkdir -p "$TEMP_DIR"
+  
+  if curl -fsSL -o "$TEMP_DIR/Oxanium.zip" "$NERD_FONTS_URL"; then
+    unzip -o "$TEMP_DIR/Oxanium.zip" -d "$FONT_DIR/temp" >/dev/null 2>&1
+    mv $FONT_DIR/temp/fonts/ttf/* $FONT_DIR
+    rm -rf $FONT_DIR/temp
+    fc-cache -f "$FONT_DIR"
+    log_success "Oxanium font installed"
+  else
+    log_warning "Could not download Oxanium Font"
+  fi
+  
+  rm -rf "$TEMP_DIR"
+fi
 #####################################################################################
 # Icon themes (WhiteSur, MacTahoe)
 #####################################################################################
@@ -653,48 +718,16 @@ if ! fc-list | grep -qi "Rubik"; then
     log_success "Rubik installed"
 fi
 
-# Geist (used by default in iNiR)
-if ! fc-list | grep -qi "Geist"; then
-  log_info "Downloading Geist font..."
-  TEMP_DIR="/tmp/geist-font-$$"
-  mkdir -p "$TEMP_DIR"
-  if curl -fsSL -o "$TEMP_DIR/geist.zip" \
-    "https://github.com/vercel/geist-font/releases/latest/download/Geist.zip"; then
-    unzip -o "$TEMP_DIR/geist.zip" -d "$TEMP_DIR" >/dev/null 2>&1
-    find "$TEMP_DIR" -name "*.ttf" -exec cp {} "$FONT_DIR/" \;
-    log_success "Geist font installed"
-  fi
-  rm -rf "$TEMP_DIR"
+# Readex Pro
+if ! fc-list | grep -qi "Readex Pro"; then
+  log_info "Downloading Readex font..."
+  curl -fsSL -o "$FONT_DIR/Readex.ttf" \
+    "https://raw.githubusercontent.com/ThomasJockin/readexpro/master/fonts/variable/Readexpro%5BHEXP%2Cwght%5D.ttf" 2>/dev/null && \
+    log_success "Readex installed"
 fi
 
 # Refresh font cache
 fc-cache -f "$FONT_DIR" 2>/dev/null
-
-#####################################################################################
-# Install CLI tools (starship, eza)
-#####################################################################################
-tui_info "Installing CLI tools..."
-
-# Starship prompt
-if ! command -v starship &>/dev/null; then
-  log_info "Installing Starship prompt..."
-  mkdir -p ~/.local/bin
-  curl -sS https://starship.rs/install.sh | sh -s -- -y -b ~/.local/bin 2>/dev/null || \
-    log_warning "Could not install Starship"
-fi
-
-# Eza (modern ls replacement)
-if ! command -v eza &>/dev/null; then
-  log_info "Installing Eza..."
-  mkdir -p ~/.local/bin
-  if curl -fsSL -o /tmp/eza.tar.gz \
-    'https://github.com/eza-community/eza/releases/latest/download/eza_x86_64-unknown-linux-musl.tar.gz'; then
-    tar -xzf /tmp/eza.tar.gz -C ~/.local/bin
-    chmod +x ~/.local/bin/eza
-    log_success "Eza installed"
-  fi
-  rm -f /tmp/eza.tar.gz
-fi
 
 #####################################################################################
 # Install adw-gtk3 theme
@@ -751,10 +784,11 @@ log_success "══════════════════════�
 echo ""
 log_info "Installed from COPR (no compilation):"
 echo "  - quickshell (errornointernet/quickshell)"
-echo "  - niri (yalter/niri)"
+echo "  - starship (atim/starship)"
+echo "  - gowall (achno/gowall)"
 echo ""
 log_info "Installed from GitHub releases:"
-echo "  - gum, cliphist, darkly, starship, eza"
+echo "  - cliphist, darkly"
 echo ""
 log_info "Themes configured:"
 echo "  - GTK: adw-gtk3-dark"
