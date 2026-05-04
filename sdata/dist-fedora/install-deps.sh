@@ -188,7 +188,7 @@ FEDORA_CORE_PKGS=(
   libnotify
   wlsunset
   uv
-  sunset
+  unzip
   
   # XDG Portals
   xdg-desktop-portal
@@ -263,6 +263,10 @@ FEDORA_QT_PKGS_2=(
 
 # Audio packages
 FEDORA_AUDIO_PKGS=(
+  playerctl
+  playerctl-libs
+  libdbusmenu
+  libdbusmenu-gtk3
   pavucontrol
   cava
   easyeffects
@@ -568,6 +572,47 @@ if ! fc-list | grep -qi "JetBrainsMono Nerd"; then
   rm -rf "$TEMP_DIR"
 fi
 
+# Roboto Flex 
+if ! fc-list | grep -qi "Roboto Flex"; then
+  log_info "Downloading Roboto Flex Font..."
+  
+  NERD_FONTS_URL="https://github.com/googlefonts/roboto-flex/releases/download/3.200/roboto-flex-fonts.zip"
+  TEMP_DIR="/tmp/fonts-$$"
+  mkdir -p "$TEMP_DIR"
+  
+  if curl -fsSL -o "$TEMP_DIR/RobotoFlex.zip" "$NERD_FONTS_URL"; then
+    unzip -o "$TEMP_DIR/RobotoFlex.zip" -d "$FONT_DIR" >/dev/null 2>&1
+    mv $FONT_DIR/roboto-flex-fonts/fonts/variable/* $FONT_DIR
+    rm -rf $FONT_DIR/roboto-flex-fonts
+    fc-cache -f "$FONT_DIR"
+    log_success "Roboto Flex installed"
+  else
+    log_warning "Could not download Roboto Flex"
+  fi
+  
+  rm -rf "$TEMP_DIR"
+fi
+
+# Oxanium
+if ! fc-list | grep -qi "Oxanium"; then
+  log_info "Downloading Oxanium Font..."
+  
+  NERD_FONTS_URL="https://github.com/sevmeyer/oxanium/releases/download/2.000/oxanium-2.000.zip"
+  TEMP_DIR="/tmp/fonts-$$"
+  mkdir -p "$TEMP_DIR"
+  
+  if curl -fsSL -o "$TEMP_DIR/Oxanium.zip" "$NERD_FONTS_URL"; then
+    unzip -o "$TEMP_DIR/Oxanium.zip" -d "$FONT_DIR/temp" >/dev/null 2>&1
+    mv $FONT_DIR/temp/fonts/ttf/* $FONT_DIR
+    rm -rf $FONT_DIR/temp
+    fc-cache -f "$FONT_DIR"
+    log_success "Oxanium font installed"
+  else
+    log_warning "Could not download Oxanium Font"
+  fi
+  
+  rm -rf "$TEMP_DIR"
+fi
 #####################################################################################
 # Icon themes (WhiteSur, MacTahoe)
 #####################################################################################
@@ -673,18 +718,12 @@ if ! fc-list | grep -qi "Rubik"; then
     log_success "Rubik installed"
 fi
 
-# Geist (used by default in iNiR)
-if ! fc-list | grep -qi "Geist"; then
-  log_info "Downloading Geist font..."
-  TEMP_DIR="/tmp/geist-font-$$"
-  mkdir -p "$TEMP_DIR"
-  if curl -fsSL -o "$TEMP_DIR/geist.zip" \
-    "https://github.com/vercel/geist-font/releases/latest/download/Geist.zip"; then
-    unzip -o "$TEMP_DIR/geist.zip" -d "$TEMP_DIR" >/dev/null 2>&1
-    find "$TEMP_DIR" -name "*.ttf" -exec cp {} "$FONT_DIR/" \;
-    log_success "Geist font installed"
-  fi
-  rm -rf "$TEMP_DIR"
+# Readex Pro
+if ! fc-list | grep -qi "Readex Pro"; then
+  log_info "Downloading Readex font..."
+  curl -fsSL -o "$FONT_DIR/Readex.ttf" \
+    "https://raw.githubusercontent.com/ThomasJockin/readexpro/master/fonts/variable/Readexpro%5BHEXP%2Cwght%5D.ttf" 2>/dev/null && \
+    log_success "Readex installed"
 fi
 
 # Refresh font cache
@@ -746,6 +785,7 @@ echo ""
 log_info "Installed from COPR (no compilation):"
 echo "  - quickshell (errornointernet/quickshell)"
 echo "  - starship (atim/starship)"
+echo "  - gowall (achno/gowall)"
 echo ""
 log_info "Installed from GitHub releases:"
 echo "  - cliphist, darkly"
