@@ -152,6 +152,30 @@ if ! rpm -q rpmfusion-nonfree-release &>/dev/null; then
 fi
 
 #####################################################################################
+# Checking for flatpak and setting it up
+#####################################################################################
+tui_info "Installing flatpak and enabling Flathub repository...."
+
+if ! command -v flatpak >/dev/null 2>&1; then
+  log_warning "Flatpak not detected"
+  log_info "Install flatpak..."
+  v sudo dnf install flatpak -y
+fi
+
+if ! flatpak remotes --columns=name | grep -qix 'flathub'; then
+  log_info "Adding flathub repository... (necessary for Mission Center)"
+  v flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+else
+  log_info "Flathub already added..."
+fi
+
+# GTK_THEME interferes with theming
+flatpak override --user --unset-env=GTK_THEME
+
+# Giving the sandbox access to gtk config directories
+flatpak override --user --filesystem=xdg-config/gtk-3.0:ro --filesystem=xdg-config/gtk-4.0:ro
+
+#####################################################################################
 # Install official repository packages
 #####################################################################################
 tui_info "Installing packages from repositories..."
@@ -259,6 +283,11 @@ FEDORA_QT_PKGS_2=(
   plasma-integration
   sddm
   sddm-wayland-plasma
+)
+
+# Flatpaks
+FEDORA_FLATPAKS_PKGS=(
+  io.missioncenter.MissionCenter
 )
 
 # Audio packages
@@ -372,6 +401,9 @@ v sudo dnf install $installflags "${FEDORA_QT6_PKGS[@]}"
 
 log_info "Installing Qt6 packages (2)..."
 v sudo dnf install --setopt=install_weak_deps=False --allowerasing "${FEDORA_QT_PKGS_2[@]}"
+
+log_info "Installing Flatpaks (Mission Center)... "
+v flatpak install flathub "${FEDORA_FLATPAKS_PKGS[@]}" -y
 
 # Install based on flags
 if ${INSTALL_AUDIO:-true}; then
