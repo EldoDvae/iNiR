@@ -214,7 +214,7 @@ Singleton {
                     }
                 })
             },
-            "tagSearchTemplate": "https://api.waifu.im/tags",
+            "tagSearchTemplate": "https://api.waifu.im/tags?Name={{query}}",
             "tagMapFunc": (response) => {
                 return response.items.map(tag => ({ "name": tag.slug }))
             }
@@ -344,7 +344,7 @@ Singleton {
             // Tags filter request should be like this:
             // https://api.waifu.im/images?IncludedTags=waifu&IncludedTags=maid
             tags.filter(tag => tag.length > 0).forEach(tag => {
-                params.push("IncludedTags=" + encodeURIComponent(tag));
+                params.push("IncludedTags=" + encodeURIComponent(tag.toLowerCase()));
             });
 
             // https://docs.waifu.im/docs/getting-started#pagination
