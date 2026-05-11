@@ -92,7 +92,7 @@ Scope {
 
                 HoverHandler {
                     onHoveredChanged: {
-                        root.osdTargetHovered = hovered || pill._osdHovered
+                        root.osdTargetHovered = hovered || pill._osdHovered == true
                         if (hovered) {
                             root.revealed = true
                             hideTimer.stop()
@@ -186,7 +186,7 @@ Scope {
                 HoverHandler {
                     onHoveredChanged: {
                         pill._osdHovered = hovered
-                        osdTargetHovered = hovered || autoHideHotZone.hovered
+                        osdTargetHovered = hovered || autoHideHotZone.hovered == true
                         if (hovered) {
                             if (root.autoHide && !root.revealed)
                                 root.revealed = true
