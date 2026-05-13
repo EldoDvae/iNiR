@@ -620,6 +620,16 @@ AbstractWidget {
 
     // Override in subclasses with widget-specific default values
     property var defaultConfig: ({})
+    // Seed defaults into Config on first load when config entry is empty
+    function _seedDefaultsIfNeeded(): void {
+        if (!Config.ready) return;
+        if (Object.keys(root.defaultConfig).length === 0) return;
+        if (Object.keys(root.configEntry).length > 0) return;
+        const prefix = "background.widgets." + root.configEntryName;
+        for (const key in root.defaultConfig)
+            Config.setNestedValue(prefix + "." + key, root.defaultConfig[key]);
+    }
+    Component.onCompleted: _seedDefaultsIfNeeded()
     function resetToDefaults(): void {
         const prefix = "background.widgets." + root.configEntryName;
         const defaults = root.defaultConfig;
@@ -670,6 +680,7 @@ AbstractWidget {
     Connections {
         target: Config
         function onReadyChanged() {
+            root._seedDefaultsIfNeeded();
             if (root._isZonePlacement) {
                 root.snapToZone(root.placementStrategy);
             } else {
