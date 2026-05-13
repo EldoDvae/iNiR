@@ -10,7 +10,7 @@ import qs.modules.common.functions
 ContentPage {
     id: root
     settingsPageIndex: 14
-    settingsPageName: Translation.tr("Desktop Widgets")
+    settingsPageName: Translation.tr("Widgets")
 
     property bool isIiActive: Config.options?.panelFamily !== "waffle"
 
@@ -1637,79 +1637,165 @@ ContentPage {
         title: Translation.tr("Custom Widgets")
 
         SettingsGroup {
-            // Actions row
-            Row {
+            // Description
+            StyledText {
+                Layout.fillWidth: true
+                text: Translation.tr("QML widgets you create or install. Place widget folders in ~/.config/inir/widgets/ — each needs a widget.json manifest and a .qml file.")
+                color: Appearance.colors.colSubtext
+                font.pixelSize: Appearance.font.pixelSize.small
+                wrapMode: Text.WordWrap
+            }
+
+            // Action bar
+            RowLayout {
                 Layout.fillWidth: true
                 spacing: 6
 
+                // Create new
                 RippleButton {
-                    width: implicitWidth; height: 32
-                    buttonRadius: Appearance.rounding.small
+                    width: implicitWidth; height: 36
+                    buttonRadius: Appearance.rounding.full
                     colBackground: ColorUtils.applyAlpha(Appearance.colors.colPrimary, 0.12)
                     colBackgroundHover: ColorUtils.applyAlpha(Appearance.colors.colPrimary, 0.20)
                     colRipple: ColorUtils.applyAlpha(Appearance.colors.colPrimary, 0.24)
-                    downAction: () => Qt.openUrlExternally("file://" + CustomWidgets.widgetsDir)
+                    downAction: () => { _cwCreateRow.visible = !_cwCreateRow.visible }
                     contentItem: Row {
-                        anchors.centerIn: parent; spacing: 6; leftPadding: 12; rightPadding: 12
-                        MaterialSymbol { text: "folder_open"; iconSize: 16; color: Appearance.colors.colPrimary; anchors.verticalCenter: parent.verticalCenter }
-                        StyledText { text: Translation.tr("Open folder"); color: Appearance.colors.colPrimary; font.pixelSize: Appearance.font.pixelSize.small; anchors.verticalCenter: parent.verticalCenter }
+                        anchors.centerIn: parent; spacing: 6; leftPadding: 14; rightPadding: 14
+                        MaterialSymbol { text: "add"; iconSize: 18; color: Appearance.colors.colPrimary; anchors.verticalCenter: parent.verticalCenter }
+                        StyledText { text: Translation.tr("New"); color: Appearance.colors.colPrimary; font.pixelSize: Appearance.font.pixelSize.small; font.weight: Font.Medium; anchors.verticalCenter: parent.verticalCenter }
                     }
                 }
+
+                // Install example
                 RippleButton {
-                    width: implicitWidth; height: 32
-                    buttonRadius: Appearance.rounding.small
+                    width: implicitWidth; height: 36
+                    buttonRadius: Appearance.rounding.full
+                    colBackground: "transparent"
+                    colBackgroundHover: ColorUtils.applyAlpha(Appearance.colors.colOnLayer1, 0.08)
+                    colRipple: ColorUtils.applyAlpha(Appearance.colors.colOnLayer1, 0.12)
+                    downAction: () => CustomWidgets.installExample()
+                    contentItem: Row {
+                        anchors.centerIn: parent; spacing: 6; leftPadding: 14; rightPadding: 14
+                        MaterialSymbol { text: "download"; iconSize: 18; color: Appearance.colors.colOnLayer1; anchors.verticalCenter: parent.verticalCenter }
+                        StyledText { text: Translation.tr("Example"); color: Appearance.colors.colOnLayer1; font.pixelSize: Appearance.font.pixelSize.small; anchors.verticalCenter: parent.verticalCenter }
+                    }
+                    StyledToolTip { text: Translation.tr("Install the built-in example widget to learn from") }
+                }
+
+                Item { Layout.fillWidth: true }
+
+                // Open folder
+                RippleButton {
+                    width: 36; height: 36
+                    buttonRadius: Appearance.rounding.full
+                    colBackground: "transparent"
+                    colBackgroundHover: ColorUtils.applyAlpha(Appearance.colors.colOnLayer1, 0.08)
+                    colRipple: ColorUtils.applyAlpha(Appearance.colors.colOnLayer1, 0.12)
+                    downAction: () => CustomWidgets.openWidgetDir("")
+                    contentItem: MaterialSymbol { anchors.centerIn: parent; text: "folder_open"; iconSize: 20; color: Appearance.colors.colOnLayer1 }
+                    StyledToolTip { text: Translation.tr("Open widgets folder") }
+                }
+
+                // Reload
+                RippleButton {
+                    width: 36; height: 36
+                    buttonRadius: Appearance.rounding.full
                     colBackground: "transparent"
                     colBackgroundHover: ColorUtils.applyAlpha(Appearance.colors.colOnLayer1, 0.08)
                     colRipple: ColorUtils.applyAlpha(Appearance.colors.colOnLayer1, 0.12)
                     downAction: () => CustomWidgets.reload()
-                    contentItem: Row {
-                        anchors.centerIn: parent; spacing: 6; leftPadding: 12; rightPadding: 12
-                        MaterialSymbol { text: "refresh"; iconSize: 16; color: Appearance.colors.colOnLayer1; anchors.verticalCenter: parent.verticalCenter }
-                        StyledText { text: Translation.tr("Reload"); color: Appearance.colors.colOnLayer1; font.pixelSize: Appearance.font.pixelSize.small; anchors.verticalCenter: parent.verticalCenter }
-                    }
+                    contentItem: MaterialSymbol { anchors.centerIn: parent; text: "refresh"; iconSize: 20; color: Appearance.colors.colOnLayer1 }
+                    StyledToolTip { text: Translation.tr("Scan for new or changed widgets") }
                 }
             }
 
-            ContentSubsection {
-                title: Translation.tr("Create widget")
+            // Create widget inline form (hidden by default)
+            ColumnLayout {
+                id: _cwCreateRow
+                visible: false
+                Layout.fillWidth: true
+                spacing: 8
 
-                Row {
-                    Layout.fillWidth: true; spacing: 6
+                RowLayout {
+                    Layout.fillWidth: true; spacing: 8
                     MaterialTextField {
                         id: _newWidgetNameField
-                        width: 180; height: 32
-                        placeholderText: "my-widget"
+                        Layout.fillWidth: true
+                        height: 40
+                        placeholderText: Translation.tr("widget-name (lowercase, dashes)")
                         font.pixelSize: Appearance.font.pixelSize.small
-                        onAccepted: if (text.length > 0) { CustomWidgets.create(text); text = "" }
+                        validator: RegularExpressionValidator { regularExpression: /[a-z0-9][a-z0-9\-]*/ }
+                        onAccepted: {
+                            if (text.length > 0) {
+                                CustomWidgets.create(text);
+                                text = "";
+                                _cwCreateRow.visible = false;
+                            }
+                        }
                     }
                     RippleButton {
-                        width: implicitWidth; height: 32
-                        buttonRadius: Appearance.rounding.small
-                        colBackground: ColorUtils.applyAlpha(Appearance.colors.colPrimary, 0.12)
-                        colBackgroundHover: ColorUtils.applyAlpha(Appearance.colors.colPrimary, 0.20)
-                        colRipple: ColorUtils.applyAlpha(Appearance.colors.colPrimary, 0.24)
-                        downAction: () => { if (_newWidgetNameField.text.length > 0) { CustomWidgets.create(_newWidgetNameField.text); _newWidgetNameField.text = "" } }
+                        id: _cwCreateBtn
+                        width: implicitWidth; height: 40
+                        buttonRadius: Appearance.rounding.full
+                        enabled: _newWidgetNameField.text.length > 0
+                        opacity: enabled ? 1 : 0.4
+                        colBackground: Appearance.colors.colPrimary
+                        colBackgroundHover: Qt.lighter(Appearance.colors.colPrimary, 1.1)
+                        colRipple: ColorUtils.applyAlpha(Appearance.colors.colOnPrimary, 0.24)
+                        downAction: () => {
+                            if (_newWidgetNameField.text.length > 0) {
+                                CustomWidgets.create(_newWidgetNameField.text);
+                                _newWidgetNameField.text = "";
+                                _cwCreateRow.visible = false;
+                            }
+                        }
                         contentItem: Row {
-                            anchors.centerIn: parent; spacing: 6; leftPadding: 12; rightPadding: 12
-                            MaterialSymbol { text: "add"; iconSize: 16; color: Appearance.colors.colPrimary; anchors.verticalCenter: parent.verticalCenter }
-                            StyledText { text: Translation.tr("Create"); color: Appearance.colors.colPrimary; font.pixelSize: Appearance.font.pixelSize.small; anchors.verticalCenter: parent.verticalCenter }
+                            anchors.centerIn: parent; spacing: 6; leftPadding: 16; rightPadding: 16
+                            MaterialSymbol { text: "add"; iconSize: 18; color: Appearance.colors.colOnPrimary; anchors.verticalCenter: parent.verticalCenter }
+                            StyledText { text: Translation.tr("Create"); color: Appearance.colors.colOnPrimary; font.pixelSize: Appearance.font.pixelSize.small; font.weight: Font.Medium; anchors.verticalCenter: parent.verticalCenter }
                         }
                     }
                 }
+
+                StyledText {
+                    Layout.fillWidth: true
+                    text: Translation.tr("Creates a template with all imports, services, and an example layout. Edit the .qml file to customize.")
+                    color: Appearance.colors.colSubtext
+                    font.pixelSize: Appearance.font.pixelSize.smaller
+                    wrapMode: Text.WordWrap
+                }
             }
 
-            StyledText {
-                visible: !CustomWidgets.ready || CustomWidgets.widgets.length === 0
+            // Empty state
+            ColumnLayout {
+                visible: CustomWidgets.ready && CustomWidgets.widgets.length === 0
                 Layout.fillWidth: true
-                Layout.topMargin: 8
-                text: Translation.tr("No custom widgets found") + "\n~/.config/inir/widgets/"
-                color: ColorUtils.applyAlpha(Appearance.colors.colOnLayer1, 0.5)
-                font.pixelSize: Appearance.font.pixelSize.small
-                horizontalAlignment: Text.AlignHCenter
+                Layout.topMargin: 12
+                Layout.bottomMargin: 8
+                spacing: 8
+
+                MaterialSymbol {
+                    Layout.alignment: Qt.AlignHCenter
+                    text: "widgets"
+                    iconSize: 40
+                    color: ColorUtils.applyAlpha(Appearance.colors.colOnLayer1, 0.2)
+                }
+                StyledText {
+                    Layout.alignment: Qt.AlignHCenter
+                    text: Translation.tr("No custom widgets installed")
+                    color: ColorUtils.applyAlpha(Appearance.colors.colOnLayer1, 0.5)
+                    font.pixelSize: Appearance.font.pixelSize.normal
+                }
+                StyledText {
+                    Layout.alignment: Qt.AlignHCenter
+                    text: Translation.tr("Click 'New' to create one, or 'Example' to install a demo widget")
+                    color: ColorUtils.applyAlpha(Appearance.colors.colOnLayer1, 0.35)
+                    font.pixelSize: Appearance.font.pixelSize.small
+                }
             }
         }
 
-        // Per-widget settings (matching built-in widget pattern)
+        // Per-widget cards
         Repeater {
             model: CustomWidgets.ready ? CustomWidgets.widgets : []
 
@@ -1718,7 +1804,7 @@ ContentPage {
                 required property var modelData
                 required property int index
 
-                // Enable + placement (same layout as built-in widgets)
+                // Header: enable + name + actions
                 ConfigRow {
                     Layout.fillWidth: true
                     SettingsSwitch {
@@ -1741,22 +1827,49 @@ ContentPage {
                     configEntry: Config.options?.background?.widgets?.custom?.[cwDelegate.modelData.id]
                 }
 
-                // Version/author info
-                StyledText {
+                // Meta row: version, author, actions
+                RowLayout {
                     Layout.fillWidth: true
-                    text: (cwDelegate.modelData.author ? (cwDelegate.modelData.author + " · ") : "") + "v" + cwDelegate.modelData.version
-                    color: ColorUtils.applyAlpha(Appearance.colors.colOnLayer1, 0.5)
-                    font.pixelSize: Appearance.font.pixelSize.smaller
+                    spacing: 8
+
+                    StyledText {
+                        text: (cwDelegate.modelData.author ? (cwDelegate.modelData.author + " · ") : "") + "v" + cwDelegate.modelData.version
+                        color: ColorUtils.applyAlpha(Appearance.colors.colOnLayer1, 0.5)
+                        font.pixelSize: Appearance.font.pixelSize.smaller
+                    }
+                    Item { Layout.fillWidth: true }
+
+                    // Edit (open folder)
+                    RippleButton {
+                        width: 28; height: 28
+                        buttonRadius: Appearance.rounding.full
+                        colBackground: "transparent"
+                        colBackgroundHover: ColorUtils.applyAlpha(Appearance.colors.colOnLayer1, 0.08)
+                        colRipple: ColorUtils.applyAlpha(Appearance.colors.colOnLayer1, 0.12)
+                        downAction: () => CustomWidgets.openWidgetDir(cwDelegate.modelData.id)
+                        contentItem: MaterialSymbol { anchors.centerIn: parent; text: "edit"; iconSize: 16; color: Appearance.colors.colOnLayer1 }
+                        StyledToolTip { text: Translation.tr("Open widget folder") }
+                    }
+
+                    // Delete
+                    RippleButton {
+                        width: 28; height: 28
+                        buttonRadius: Appearance.rounding.full
+                        colBackground: "transparent"
+                        colBackgroundHover: ColorUtils.applyAlpha(Appearance.colors.colError, 0.08)
+                        colRipple: ColorUtils.applyAlpha(Appearance.colors.colError, 0.12)
+                        downAction: () => { _cwDeleteConfirm.widgetId = cwDelegate.modelData.id; _cwDeleteConfirm.widgetName = cwDelegate.modelData.name; _cwDeleteConfirm.visible = true }
+                        contentItem: MaterialSymbol { anchors.centerIn: parent; text: "delete"; iconSize: 16; color: Appearance.colors.colError }
+                        StyledToolTip { text: Translation.tr("Remove widget") }
+                    }
                 }
 
                 // Validation warnings
-                StyledText {
+                NoticeBox {
                     visible: !cwDelegate.modelData.valid
                     Layout.fillWidth: true
-                    text: (cwDelegate.modelData.warnings || []).join(", ")
-                    color: Appearance.colors.colError
-                    font.pixelSize: Appearance.font.pixelSize.smaller
-                    wrapMode: Text.WordWrap
+                    materialIcon: "warning"
+                    text: (cwDelegate.modelData.warnings || []).join("\n")
                 }
 
                 // Auto-generated controls from manifest configKeys
@@ -1816,6 +1929,70 @@ ContentPage {
                 WidgetAppearanceControls {
                     configPath: "background.widgets.custom." + cwDelegate.modelData.id
                     configEntry: Config.options?.background?.widgets?.custom?.[cwDelegate.modelData.id]
+                }
+            }
+        }
+    }
+
+    // Delete confirmation overlay (shared for all custom widgets)
+    Rectangle {
+        id: _cwDeleteConfirm
+        property string widgetId: ""
+        property string widgetName: ""
+        visible: false
+        Layout.fillWidth: true
+        implicitHeight: _delCol.implicitHeight + 24
+        radius: Appearance.rounding.normal
+        color: ColorUtils.applyAlpha(Appearance.colors.colError, 0.08)
+        border.width: 1
+        border.color: ColorUtils.applyAlpha(Appearance.colors.colError, 0.2)
+
+        ColumnLayout {
+            id: _delCol
+            anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 12 }
+            spacing: 8
+
+            StyledText {
+                Layout.fillWidth: true
+                text: Translation.tr("Remove '%1'? This deletes the widget folder permanently.").arg(_cwDeleteConfirm.widgetName)
+                color: Appearance.colors.colOnLayer1
+                font.pixelSize: Appearance.font.pixelSize.small
+                wrapMode: Text.WordWrap
+            }
+
+            Row {
+                Layout.alignment: Qt.AlignRight
+                spacing: 8
+
+                RippleButton {
+                    width: implicitWidth; height: 32
+                    buttonRadius: Appearance.rounding.full
+                    colBackground: "transparent"
+                    colBackgroundHover: ColorUtils.applyAlpha(Appearance.colors.colOnLayer1, 0.08)
+                    colRipple: ColorUtils.applyAlpha(Appearance.colors.colOnLayer1, 0.12)
+                    downAction: () => { _cwDeleteConfirm.visible = false }
+                    contentItem: StyledText {
+                        anchors.centerIn: parent; leftPadding: 16; rightPadding: 16
+                        text: Translation.tr("Cancel")
+                        color: Appearance.colors.colOnLayer1
+                        font.pixelSize: Appearance.font.pixelSize.small
+                    }
+                }
+                RippleButton {
+                    width: implicitWidth; height: 32
+                    buttonRadius: Appearance.rounding.full
+                    colBackground: Appearance.colors.colError
+                    colBackgroundHover: Qt.lighter(Appearance.colors.colError, 1.1)
+                    colRipple: ColorUtils.applyAlpha(Appearance.colors.colOnError, 0.24)
+                    downAction: () => {
+                        CustomWidgets.remove(_cwDeleteConfirm.widgetId);
+                        _cwDeleteConfirm.visible = false;
+                    }
+                    contentItem: Row {
+                        anchors.centerIn: parent; spacing: 6; leftPadding: 16; rightPadding: 16
+                        MaterialSymbol { text: "delete"; iconSize: 16; color: Appearance.colors.colOnError; anchors.verticalCenter: parent.verticalCenter }
+                        StyledText { text: Translation.tr("Delete"); color: Appearance.colors.colOnError; font.pixelSize: Appearance.font.pixelSize.small; font.weight: Font.Medium; anchors.verticalCenter: parent.verticalCenter }
+                    }
                 }
             }
         }

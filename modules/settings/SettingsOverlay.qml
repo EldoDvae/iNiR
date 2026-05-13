@@ -110,6 +110,7 @@ Scope {
         { pageIndex: 14, pageName: overlayPages[14].name, section: Translation.tr("Visualizer"), label: Translation.tr("Audio visualizer"), description: Translation.tr("Audio visualizer bars on the desktop"), keywords: ["visualizer", "audio", "bars", "music", "equalizer", "spectrum"] },
         { pageIndex: 14, pageName: overlayPages[14].name, section: Translation.tr("System Monitor"), label: Translation.tr("System monitor widget"), description: Translation.tr("CPU, RAM, GPU usage on the desktop"), keywords: ["system", "monitor", "cpu", "ram", "gpu", "usage", "performance"] },
         { pageIndex: 14, pageName: overlayPages[14].name, section: Translation.tr("Battery"), label: Translation.tr("Desktop battery widget"), description: Translation.tr("Battery status on the desktop background"), keywords: ["battery", "widget", "background", "charge", "power"] },
+        { pageIndex: 14, pageName: overlayPages[14].name, section: Translation.tr("Custom Widgets"), label: Translation.tr("Custom widgets"), description: Translation.tr("Create, install, and manage custom QML widgets"), keywords: ["custom", "widget", "create", "qml", "install", "user", "plugin"] },
         // Themes (page 4)
         { pageIndex: 4, pageName: overlayPages[4].name, section: Translation.tr("Global Style"), label: Translation.tr("Global Style"), description: Translation.tr("Material, Cards, Aurora glass effect, Inir TUI style"), keywords: ["global", "style", "aurora", "inir", "material", "cards", "glass", "tui", "transparency", "blur"] },
         { pageIndex: 4, pageName: overlayPages[4].name, section: Translation.tr("Global Style"), label: Translation.tr("Aurora"), description: Translation.tr("Glass effect with wallpaper blur behind panels"), keywords: ["aurora", "glass", "blur", "transparency", "style", "translucent"] },
@@ -1628,7 +1629,7 @@ Scope {
 
     // Navigation categories for grouping pages in the rail
     property var navCategories: [
-        { label: Translation.tr("Appearance"), pages: [0, 4, 3] },
+        { label: Translation.tr("Appearance"), pages: [0, 4, 3, 14] },
         { label: Translation.tr("Layout"), pages: [2, 5, 6, 10] },
         { label: Translation.tr("System"), pages: [1, 7, 8] },
         { label: Translation.tr("Reference"), pages: [9, 11, 12, 13] }
@@ -1749,10 +1750,10 @@ Scope {
             component: Quickshell.shellPath("modules/settings/About.qml")
         },
         {
-            name: Translation.tr("Desktop Widgets"),
+            name: Translation.tr("Widgets"),
             shortName: "",
             icon: "widgets",
-            desc: Translation.tr("Clock, weather, visualizer, monitor"),
+            desc: Translation.tr("Clock, weather, media, custom"),
             essential: false,
             component: Quickshell.shellPath("modules/settings/DesktopWidgetsConfig.qml")
         }

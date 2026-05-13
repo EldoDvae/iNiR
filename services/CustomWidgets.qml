@@ -117,6 +117,24 @@ Singleton {
         _createProcess.running = true;
     }
 
+    // Delete a widget by removing its directory
+    function remove(widgetId: string): void {
+        if (!widgetId || widgetId.length === 0) return;
+        _removeProcess.widgetId = widgetId;
+        _removeProcess.running = true;
+    }
+
+    // Install the built-in example widget
+    function installExample(): void {
+        _installExampleProcess.running = true;
+    }
+
+    // Open widget directory in file manager
+    function openWidgetDir(widgetId: string): void {
+        const dirPath = widgetId ? `${root.widgetsDir}/${widgetId}` : root.widgetsDir;
+        Qt.openUrlExternally("file://" + dirPath);
+    }
+
     IpcHandler {
         target: "customWidgets"
 
@@ -136,6 +154,12 @@ Singleton {
             if (!name || name.length === 0) return "Usage: inir customWidgets create <name>";
             root.create(name);
             return `Creating widget "${name}" in ${root.widgetsDir}/${name}/...`;
+        }
+
+        function remove(widgetId: string): string {
+            if (!widgetId || widgetId.length === 0) return "Usage: inir customWidgets remove <id>";
+            root.remove(widgetId);
+            return `Removing widget "${widgetId}"...`;
         }
     }
 
@@ -266,6 +290,37 @@ AbstractBackgroundWidget {
     //   root.colText adapts to wallpaper brightness automatically
 }
 QML
+            echo "done"
+        `]
+        stdout: StdioCollector {
+            onStreamFinished: root.reload()
+        }
+    }
+
+    // Remove a widget directory
+    Process {
+        id: _removeProcess
+        property string widgetId: ""
+        running: false
+        command: ["bash", "-c", `rm -rf "${root.widgetsDir}/${_removeProcess.widgetId}" && echo "removed"`]
+        stdout: StdioCollector {
+            onStreamFinished: root.reload()
+        }
+    }
+
+    // Path to shipped example widget
+    readonly property string _exampleWidgetPath: FileUtils.trimFileProtocol(Quickshell.shellPath("defaults/widgets/example-widget"))
+
+    // Copy example widget from defaults
+    Process {
+        id: _installExampleProcess
+        running: false
+        command: ["bash", "-c", `
+            src="${root._exampleWidgetPath}"
+            dest="${root.widgetsDir}/example-widget"
+            [ -d "$src" ] || { echo "fail"; exit 1; }
+            mkdir -p "$dest"
+            cp -r "$src"/* "$dest"/
             echo "done"
         `]
         stdout: StdioCollector {
