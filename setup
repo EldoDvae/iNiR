@@ -1813,9 +1813,10 @@ run_update_simulated() {
     tui_check_ok "pipewire             (installed)"
     tui_check_ok "niri                 (installed)"
     tui_check_ok "matugen              (installed)"
+    tui_check_ok "millennium           (installed)"
     tui_check_ok "fish                 (installed)"
     sleep 1
-    tui_success "All 47 runtime dependencies satisfied"
+    tui_success "All 48 runtime dependencies satisfied"
 
     # Step 6 — verbose op: header + simulated python-pkg lines
     _step_phase_header 6 "Python packages"

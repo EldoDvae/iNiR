@@ -114,6 +114,16 @@ check_dependencies() {
         "songrec:SongRec"
         "trans:translate-shell"
     )
+
+    millennium_available() {
+        [[ -d /usr/lib/millennium ]] && return 0
+        if command -v pacman >/dev/null 2>&1; then
+            pacman -Q millennium-bin >/dev/null 2>&1 && return 0
+            pacman -Q millennium >/dev/null 2>&1 && return 0
+            pacman -Q millennium-git >/dev/null 2>&1 && return 0
+        fi
+        return 1
+    }
     
     # Check required commands
     for item in "${cmds[@]}"; do
@@ -124,6 +134,11 @@ check_dependencies() {
             missing_cmds+=("$cmd")
         fi
     done
+
+    if ! millennium_available; then
+        missing+=("Millennium")
+        missing_cmds+=("millennium")
+    fi
     
     # Check optional commands (warn but don't fail)
     local optional_missing=()

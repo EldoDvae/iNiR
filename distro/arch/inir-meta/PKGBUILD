@@ -33,6 +33,7 @@ depends=(
   kvantum
   libdbusmenu-gtk3
   libqalculate
+  millennium-bin
   mpv
   mpv-mpris
   nautilus

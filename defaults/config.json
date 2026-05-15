@@ -126,7 +126,7 @@
             "enableVSCode": true,
             "enableChrome": true,
             "enableSpicetify": false,
-            "enableAdwSteam": false,
+            "enableSteam": false,
             "enablePearDesktop": true,
             "enableNeovim": false,
             "colorStrength": 1.0,

@@ -17,6 +17,7 @@ depends=(
   jq
   kirigami
   libnotify
+  millennium-bin
   networkmanager
   niri
   noto-fonts-emoji

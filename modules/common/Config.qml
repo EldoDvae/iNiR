@@ -508,7 +508,7 @@ Singleton {
                     property bool enableVSCode: true
                     property bool enableChrome: true
                     property bool enableSpicetify: false
-                    property bool enableAdwSteam: false
+                    property bool enableSteam: false
                     property bool enablePearDesktop: true
                     property bool enableOpenCode: false
                     property bool enableNeovim: false

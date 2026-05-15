@@ -47,6 +47,7 @@ if [[ -n "${ONLY_MISSING_DEPS:-}" ]]; then
     [syntax-highlighting]="syntax-highlighting"
     [kirigami]="kirigami"
     [kdialog]="kdialog"
+    [millennium]="millennium-bin"
   )
 
   _miss_installflags="--needed"
@@ -321,6 +322,10 @@ v pkg_sudo pacman -S $installflags "${OFFICIAL_PACKAGES[@]}"
 #####################################################################################
 tui_info "Installing AUR packages..."
 
+REQUIRED_AUR_PACKAGES=(
+  millennium-bin
+)
+
 AUR_PACKAGES=(
   # Qt6 extras (not in official repos)
   qt6-avif-image-plugin
@@ -401,6 +406,14 @@ fi
 # Reset installflags for AUR helper
 installflags="--needed"
 $ask || installflags="$installflags --noconfirm"
+
+if [[ ${#REQUIRED_AUR_PACKAGES[@]} -gt 0 ]]; then
+  log_info "Installing required AUR packages: ${REQUIRED_AUR_PACKAGES[*]}"
+  if ! v $AUR_HELPER -S $installflags "${REQUIRED_AUR_PACKAGES[@]}"; then
+    log_error "Failed to install required AUR packages: ${REQUIRED_AUR_PACKAGES[*]}"
+    return 1
+  fi
+fi
 
 # Install main AUR packages (these are the only ones that need AUR)
 if [[ ${#AUR_PACKAGES[@]} -gt 0 ]]; then
