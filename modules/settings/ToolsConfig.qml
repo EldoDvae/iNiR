@@ -577,6 +577,20 @@ ContentPage {
                     }
                 }
             }
+
+            ContentSubsection {
+                title: Translation.tr("File naming")
+
+                ContentSubsectionLabel {
+                    text: Translation.tr("Recording filename format (date tokens)")
+                }
+                MaterialTextField {
+                    Layout.fillWidth: true
+                    placeholderText: "recording_%Y-%m-%d_%H.%M.%S"
+                    text: Config.options?.screenRecord?.recordingNameFormat ?? "recording_%Y-%m-%d_%H.%M.%S"
+                    onEditingFinished: Config.setNestedValue("screenRecord.recordingNameFormat", text)
+                }
+            }
         }
     }
 
@@ -721,6 +735,20 @@ ContentPage {
                     StyledToolTip {
                         text: Translation.tr("Padding around the selected circle region")
                     }
+                }
+            }
+
+            ContentSubsection {
+                title: Translation.tr("File naming")
+
+                ContentSubsectionLabel {
+                    text: Translation.tr("Screenshot filename format (date tokens)")
+                }
+                MaterialTextField {
+                    Layout.fillWidth: true
+                    placeholderText: "ss-%Y%m%d-%H%M%S"
+                    text: Config.options?.regionSelector?.screenshotNameFormat ?? "ss-%Y%m%d-%H%M%S"
+                    onEditingFinished: Config.setNestedValue("regionSelector.screenshotNameFormat", text)
                 }
             }
         }
