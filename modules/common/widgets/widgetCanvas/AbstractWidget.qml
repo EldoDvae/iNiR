@@ -13,6 +13,7 @@ Item {
     property alias animateYPos: yBehavior.enabled
     property bool draggable: true
     readonly property bool containsPress: _dragArea.pressed
+    readonly property bool isDragging: _dragArea.drag.active
 
     signal released()
 

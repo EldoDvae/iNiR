@@ -202,19 +202,29 @@ AbstractWidget {
         return root._clampY(root._autoPlaceY);
     }
 
+    // Guard: briefly suppress auto-position after release so onReleased can update config
+    property bool _releaseGuard: false
+    Timer {
+        id: _releaseGuardTimer
+        interval: 50
+        onTriggered: root._releaseGuard = false
+    }
+
     // Auto-position when NOT free and NOT actively being dragged in edit mode
-    readonly property bool _autoPosition: root.placementStrategy !== "free" && !(GlobalStates.widgetEditMode && (root.containsPress || root._isResizing))
+    readonly property bool _autoPosition: root.placementStrategy !== "free" && !(GlobalStates.widgetEditMode && (root.isDragging || root.containsPress || root._isResizing || root._releaseGuard))
     Binding {
         target: root
         property: "x"
         value: root.targetX
         when: root._autoPosition
+        restoreMode: Binding.RestoreNone
     }
     Binding {
         target: root
         property: "y"
         value: root.targetY
         when: root._autoPosition
+        restoreMode: Binding.RestoreNone
     }
     Behavior on x {
         enabled: Appearance.animationsEnabled && root._autoPosition
@@ -473,7 +483,7 @@ AbstractWidget {
     }
 
     // ── Edit mode widget name label ─────────────────────────
-    StyledText {
+    Row {
         z: 200
         visible: GlobalStates.widgetEditMode
         anchors {
@@ -481,9 +491,38 @@ AbstractWidget {
             top: parent.bottom
             topMargin: 6
         }
-        text: root.configEntryName.split(".").pop()
-        font.pixelSize: Appearance.font.pixelSize.smaller
-        color: ColorUtils.applyAlpha(Appearance.colors.colOnLayer0, 0.5)
+        spacing: 4
+
+        // Placement strategy badge
+        Rectangle {
+            visible: root.placementStrategy !== "free"
+            anchors.verticalCenter: parent.verticalCenter
+            width: strategyIcon.implicitWidth + 6
+            height: strategyIcon.implicitHeight + 4
+            radius: Appearance.rounding.small
+            color: ColorUtils.applyAlpha(
+                root.locked ? Appearance.colors.colError
+                    : root._isZonePlacement ? Appearance.colors.colPrimary
+                    : Appearance.colors.colTertiary, 0.18)
+            MaterialSymbol {
+                id: strategyIcon
+                anchors.centerIn: parent
+                iconSize: 10
+                text: root.locked ? "lock"
+                    : root._isZonePlacement ? "grid_on"
+                    : root._isAutoPlacement ? "auto_awesome" : ""
+                color: root.locked ? Appearance.colors.colError
+                    : root._isZonePlacement ? Appearance.colors.colPrimary
+                    : Appearance.colors.colTertiary
+            }
+        }
+
+        StyledText {
+            anchors.verticalCenter: parent.verticalCenter
+            text: root.configEntryName.split(".").pop()
+            font.pixelSize: Appearance.font.pixelSize.smaller
+            color: ColorUtils.applyAlpha(Appearance.colors.colOnLayer0, 0.5)
+        }
     }
 
     // ── Edit mode selection outline ──────────────────────────
@@ -665,10 +704,14 @@ AbstractWidget {
 
     onReleased: {
         if (GlobalStates.screenLocked) return;
+        // Suppress _autoPosition Binding for a frame so it doesn't snap back
+        root._releaseGuard = true;
+        _releaseGuardTimer.restart();
+
         let newX = root.x;
         let newY = root.y;
 
-        // In edit mode with zone snap: detect nearest zone
+        // In edit mode: zone-placed widgets re-snap to nearest zone
         if (GlobalStates.widgetEditMode && root._isZonePlacement) {
             const nearest = root._nearestZone(newX, newY);
             root.snapToZone(nearest);
@@ -691,7 +734,6 @@ AbstractWidget {
         if (root.placementStrategy !== "free")
             updates[prefix + ".placementStrategy"] = "free";
         Config.setNestedValues(updates);
-        // Re-analyze color at new position
         if (root.needsColText) _placementDebounce.restart();
     }
 
@@ -801,9 +843,7 @@ AbstractWidget {
         if (root.wallpaperPath.length > 0)
             _placementDebounce.restart()
     }
-    onPlacementStrategyChanged: {
-        root.applyPlacementFromConfig();
-    }
+    onPlacementStrategyChanged: Qt.callLater(root.applyPlacementFromConfig)
     // Re-snap zone positions when screen size changes
     onScaledScreenWidthChanged: if (root._isZonePlacement) _zoneResnapDebounce.restart()
     onScaledScreenHeightChanged: if (root._isZonePlacement) _zoneResnapDebounce.restart()

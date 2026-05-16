@@ -80,6 +80,47 @@ Scope {
             return Boolean(bgRoot._widgetConfigValue(widgetKey, "enable", fallback));
         }
 
+        // Zone occupancy: map zone name → array of widget names
+        readonly property var _builtinWidgets: [
+            { key: "weather",        defaultOn: true,  icon: "cloud" },
+            { key: "clock",          defaultOn: true,  icon: "schedule" },
+            { key: "mediaControls",  defaultOn: true,  icon: "album" },
+            { key: "visualizer",     defaultOn: false, icon: "graphic_eq" },
+            { key: "systemMonitor",  defaultOn: false, icon: "monitor_heart" },
+            { key: "battery",        defaultOn: false, icon: "battery_full" }
+        ]
+        // Revision counter to force re-evaluation
+        property int _zoneRevision: 0
+        Connections {
+            target: Config
+            function onConfigChanged() { bgRoot._zoneRevision++ }
+        }
+        function _computeZoneOccupants(): var {
+            void bgRoot._zoneRevision; // bind to revision
+            const zones = ["topLeft", "topCenter", "topRight", "centerLeft", "center", "centerRight", "bottomLeft", "bottomCenter", "bottomRight"];
+            let occ = {};
+            for (const z of zones) occ[z] = [];
+            for (const w of bgRoot._builtinWidgets) {
+                if (!bgRoot._widgetEnabled(w.key, w.defaultOn)) continue;
+                const strat = bgRoot._widgetConfigValue(w.key, "placementStrategy", "free");
+                if (zones.indexOf(strat) >= 0)
+                    occ[strat].push({ name: w.key, icon: w.icon, locked: Boolean(bgRoot._widgetConfigValue(w.key, "locked", false)) });
+            }
+            // Custom widgets
+            if (typeof CustomWidgets !== "undefined" && CustomWidgets.ready) {
+                const list = CustomWidgets.widgets;
+                for (let i = 0; i < list.length; i++) {
+                    const cw = list[i];
+                    if (!Config.getNestedValue("background.widgets.custom." + cw.id + ".enable", false)) continue;
+                    const strat = Config.getNestedValue("background.widgets.custom." + cw.id + ".placementStrategy", "free");
+                    if (zones.indexOf(strat) >= 0)
+                        occ[strat].push({ name: cw.name || cw.id, icon: cw.icon || "widgets", locked: Boolean(Config.getNestedValue("background.widgets.custom." + cw.id + ".locked", false)) });
+                }
+            }
+            return occ;
+        }
+        readonly property var zoneOccupants: _computeZoneOccupants()
+
         // Multi-monitor wallpaper support
         // IMPORTANT: Only use WallpaperListener when multi-monitor is enabled.
         // When disabled, use direct config path to preserve QML reactive bindings
@@ -1061,6 +1102,19 @@ Scope {
                     AnchorAnimation { duration: Appearance.animation.elementMove.duration; easing.type: Appearance.animation.elementMove.type; easing.bezierCurve: Appearance.animation.elementMove.bezierCurve }
                 }
 
+                // ── Edit Mode Scrim ──────────────────────────────
+                Rectangle {
+                    anchors.fill: parent
+                    z: -2
+                    visible: opacity > 0
+                    opacity: GlobalStates.widgetEditMode ? 1 : 0
+                    color: Qt.rgba(0, 0, 0, 0.15)
+                    Behavior on opacity {
+                        enabled: Appearance.animationsEnabled
+                        NumberAnimation { duration: Appearance.animation.elementMoveEnter.duration; easing.type: Appearance.animation.elementMoveEnter.type; easing.bezierCurve: Appearance.animation.elementMoveEnter.bezierCurve }
+                    }
+                }
+
                 // ── Edit Mode Overlay ─────────────────────────────
                 Item {
                     id: editGridOverlay
@@ -1089,16 +1143,18 @@ Scope {
                     // Grid dots at intersections
                     readonly property bool gridNonDefault: gridSize !== 32
                     Canvas {
+                        id: editGridCanvas
                         anchors.fill: parent
                         visible: editGridOverlay.gridVisible
                         onPaint: {
                             const ctx = getContext("2d");
                             ctx.clearRect(0, 0, width, height);
+                            if (width <= 0 || height <= 0) return;
                             const gs = editGridOverlay.gridSize;
                             const dotColor = editGridOverlay.gridColor;
                             const custom = editGridOverlay.gridNonDefault;
-                            const alpha = custom ? 0.12 : 0.06;
-                            const dotR = custom ? 1.6 : 1.2;
+                            const alpha = custom ? 0.18 : 0.10;
+                            const dotR = custom ? 1.8 : 1.4;
                             ctx.fillStyle = Qt.rgba(dotColor.r, dotColor.g, dotColor.b, alpha);
                             const cols = Math.floor(width / gs) + 1;
                             const rows = Math.floor(height / gs) + 1;
@@ -1109,9 +1165,9 @@ Scope {
                                     ctx.fill();
                                 }
                             }
-                            // Draw subtle grid lines for non-default sizes
+                            // Subtle grid lines for non-default sizes
                             if (custom) {
-                                ctx.strokeStyle = Qt.rgba(dotColor.r, dotColor.g, dotColor.b, 0.03);
+                                ctx.strokeStyle = Qt.rgba(dotColor.r, dotColor.g, dotColor.b, 0.05);
                                 ctx.lineWidth = 0.5;
                                 for (let c = 0; c < cols; ++c) {
                                     ctx.beginPath();
@@ -1127,27 +1183,42 @@ Scope {
                                 }
                             }
                         }
+                        onVisibleChanged: if (visible && available) requestPaint()
                         Component.onCompleted: requestPaint()
                         Connections {
                             target: editGridOverlay
-                            function onGridSizeChanged() { if (parent?.available) parent.requestPaint() }
-                            function onGridNonDefaultChanged() { if (parent?.available) parent.requestPaint() }
-                            function onGridColorChanged() { if (parent?.available) parent.requestPaint() }
-                            function onWidthChanged() { if (parent?.available) parent.requestPaint() }
-                            function onHeightChanged() { if (parent?.available) parent.requestPaint() }
+                            function onGridSizeChanged() { editGridCanvas.requestPaint() }
+                            function onGridNonDefaultChanged() { editGridCanvas.requestPaint() }
+                            function onGridColorChanged() { editGridCanvas.requestPaint() }
+                            function onWidthChanged() { editGridCanvas.requestPaint() }
+                            function onHeightChanged() { editGridCanvas.requestPaint() }
+                        }
+                        Connections {
+                            target: GlobalStates
+                            function onWidgetEditModeChanged() {
+                                if (GlobalStates.widgetEditMode && editGridCanvas.available)
+                                    editGridCanvas.requestPaint();
+                            }
                         }
                     }
 
-                    // Center crosshair lines
+                    // Center crosshair lines (dashed segments near center)
                     Rectangle {
                         x: Math.floor(parent.width / 2)
                         width: 1; height: parent.height
-                        color: CF.ColorUtils.applyAlpha(editGridOverlay.crosshairColor, 0.12)
+                        color: CF.ColorUtils.applyAlpha(editGridOverlay.crosshairColor, 0.08)
                     }
                     Rectangle {
                         y: Math.floor(parent.height / 2)
                         width: parent.width; height: 1
-                        color: CF.ColorUtils.applyAlpha(editGridOverlay.crosshairColor, 0.12)
+                        color: CF.ColorUtils.applyAlpha(editGridOverlay.crosshairColor, 0.08)
+                    }
+                    // Center dot
+                    Rectangle {
+                        x: Math.floor(parent.width / 2) - 3
+                        y: Math.floor(parent.height / 2) - 3
+                        width: 6; height: 6; radius: 3
+                        color: CF.ColorUtils.applyAlpha(editGridOverlay.crosshairColor, 0.25)
                     }
 
                     // ── Snap Zone Indicators (3x3 grid) ──────────────
@@ -1170,31 +1241,67 @@ Scope {
                             readonly property int row: modelData.row
                             readonly property real zw: (editGridOverlay.width - editGridOverlay.zoneMargin * 2) / 3
                             readonly property real zh: (editGridOverlay.height - editGridOverlay.zoneMargin * 2) / 3
+                            readonly property var occupants: bgRoot.zoneOccupants[modelData.zone] ?? []
+                            readonly property bool occupied: occupants.length > 0
+                            readonly property bool hasLocked: {
+                                for (let i = 0; i < occupants.length; i++)
+                                    if (occupants[i].locked) return true;
+                                return false;
+                            }
 
                             x: editGridOverlay.zoneMargin + col * zw + 4
                             y: editGridOverlay.zoneMargin + row * zh + 4
                             width: zw - 8
                             height: zh - 8
                             radius: Appearance.rounding.small
-                            color: "transparent"
+                            color: occupied
+                                ? CF.ColorUtils.applyAlpha(hasLocked ? Appearance.colors.colError : editGridOverlay.gridColor, 0.04)
+                                : "transparent"
                             border {
-                                width: 1
-                                color: CF.ColorUtils.applyAlpha(editGridOverlay.gridColor, 0.15)
+                                width: occupied ? 1.5 : 1
+                                color: CF.ColorUtils.applyAlpha(
+                                    hasLocked ? Appearance.colors.colError : editGridOverlay.gridColor,
+                                    occupied ? 0.25 : 0.10)
                             }
+                            Behavior on color { enabled: Appearance.animationsEnabled; ColorAnimation { duration: 200 } }
+                            Behavior on border.color { enabled: Appearance.animationsEnabled; ColorAnimation { duration: 200 } }
 
-                            // Zone label
-                            Text {
+                            // Zone content: arrow + occupant icons
+                            Column {
                                 anchors.centerIn: parent
-                                text: {
-                                    const labels = {
-                                        topLeft: "↖", topCenter: "↑", topRight: "↗",
-                                        centerLeft: "←", center: "⊙", centerRight: "→",
-                                        bottomLeft: "↙", bottomCenter: "↓", bottomRight: "↘"
-                                    };
-                                    return labels[zoneRect.modelData.zone] ?? "";
+                                spacing: 4
+
+                                // Direction arrow
+                                Text {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    text: {
+                                        const labels = {
+                                            topLeft: "↖", topCenter: "↑", topRight: "↗",
+                                            centerLeft: "←", center: "⊙", centerRight: "→",
+                                            bottomLeft: "↙", bottomCenter: "↓", bottomRight: "↘"
+                                        };
+                                        return labels[zoneRect.modelData.zone] ?? "";
+                                    }
+                                    font.pixelSize: zoneRect.occupied ? 14 : 16
+                                    color: CF.ColorUtils.applyAlpha(editGridOverlay.gridColor, zoneRect.occupied ? 0.35 : 0.20)
                                 }
-                                font.pixelSize: 16
-                                color: CF.ColorUtils.applyAlpha(editGridOverlay.gridColor, 0.25)
+
+                                // Occupant widget icons
+                                Row {
+                                    visible: zoneRect.occupied
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    spacing: 4
+                                    Repeater {
+                                        model: zoneRect.occupants
+                                        MaterialSymbol {
+                                            required property var modelData
+                                            text: modelData.icon
+                                            iconSize: 14
+                                            color: CF.ColorUtils.applyAlpha(
+                                                modelData.locked ? Appearance.colors.colError : editGridOverlay.gridColor, 0.45)
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
